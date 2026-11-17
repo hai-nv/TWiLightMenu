@@ -132,6 +132,12 @@ std::string dirContName;
 char boxArtPath[256];
 const char* boxArtFilename;
 
+// Favorites listed in root are named "Folder/Game.nds"; box art is stored by "Game.nds"
+static const char* nameWithoutFolder(const std::string &n) {
+	const size_t slash = n.rfind('/');
+	return (slash == std::string::npos) ? n.c_str() : n.c_str() + slash + 1;
+}
+
 bool boxArtFound = false;
 bool boxArtLoaded = false;
 bool shouldersRendered = false;
@@ -2893,11 +2899,11 @@ void getFileInfo(SwitchState scrn, vector<vector<DirEntry>> dirContents, bool re
 				if (dsiFeatures() && !ms().macroMode && ms().showBoxArt == 2 && ms().theme != TWLSettings::EThemeHBL) {
 					snprintf(boxArtPath, sizeof(boxArtPath), "%s:/_nds/TWiLightMenu/boxart/%s.bmp",
 							 sys().isRunFromSD() ? "sd" : "fat",
-							 dirContents[scrn][i + PAGENUM * 40].name.c_str());
+							 nameWithoutFolder(dirContents[scrn][i + PAGENUM * 40].name));
 					if (access(boxArtPath, F_OK) != 0) {
 						snprintf(boxArtPath, sizeof(boxArtPath), "%s:/_nds/TWiLightMenu/boxart/%s.png",
 								 sys().isRunFromSD() ? "sd" : "fat",
-								 dirContents[scrn][i + PAGENUM * 40].name.c_str());
+								 nameWithoutFolder(dirContents[scrn][i + PAGENUM * 40].name));
 					}
 					if (!isDirectory[i] && (bnrRomType[i] == 0) && (access(boxArtPath, F_OK) != 0)) {
 						if (access(boxArtPath, F_OK) != 0) {
@@ -3480,7 +3486,7 @@ std::string browseForFile(const std::vector<std::string_view> extensionList) {
 
 				boxArtFound = ((CURPOS + PAGENUM * 40) < ((int)dirContents[scrn].size()));
 				if (boxArtFound) {
-					boxArtFilename = dirContents[scrn].at(CURPOS + PAGENUM * 40).name.c_str();
+					boxArtFilename = nameWithoutFolder(dirContents[scrn].at(CURPOS + PAGENUM * 40).name);
 				}
 				updateBoxArt();
 				if (ms().theme < 4) {
