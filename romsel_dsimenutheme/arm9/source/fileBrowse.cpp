@@ -749,6 +749,9 @@ static bool boxArtFileExists(const char *path) {
 	if (boxArtDirHashes.empty()) return access(path, F_OK) == 0; // couldn't read the folder
 	return std::binary_search(boxArtDirHashes.begin(), boxArtDirHashes.end(), boxArtNameHash(slash + 1));
 }
+// Which slots have had their box art file read into the cache (see tex().loadBoxArtToMem)
+static bool boxArtSlotLoaded[40] = {false};
+
 void updateBoxArt(void) {
 	if (!boxArtFound) return;
 	showSTARTborder = true;
@@ -759,18 +762,23 @@ void updateBoxArt(void) {
 	}
 
 	sprintf(boxArtPath, "%s:/_nds/TWiLightMenu/boxart/%s.bmp", sys().isRunFromSD() ? "sd" : "fat", boxArtFilename);
-	if (boxArtFileExists(boxArtPath) != 0) {
+	if (!boxArtFileExists(boxArtPath)) {
 		sprintf(boxArtPath, "%s:/_nds/TWiLightMenu/boxart/%s.png", sys().isRunFromSD() ? "sd" : "fat", boxArtFilename);
 	}
 	if (!isDirectory[CURPOS] && (bnrRomType[CURPOS] == 0)) {
-		if (boxArtFileExists(boxArtPath) != 0) {
+		if (!boxArtFileExists(boxArtPath)) {
 			sprintf(boxArtPath, "%s:/_nds/TWiLightMenu/boxart/%s.bmp", sys().isRunFromSD() ? "sd" : "fat", gameTid[CURPOS]);
 		}
-		if (boxArtFileExists(boxArtPath) != 0) {
+		if (!boxArtFileExists(boxArtPath)) {
 			sprintf(boxArtPath, "%s:/_nds/TWiLightMenu/boxart/%s.png", sys().isRunFromSD() ? "sd" : "fat", gameTid[CURPOS]);
 		}
 	}
-	if (!tex().drawBoxArt(boxArtPath, (dsiFeatures() && ms().showBoxArt == 2))) { // Load box art
+	const bool boxArtInMem = (dsiFeatures() && ms().showBoxArt == 2);
+	if (boxArtInMem && CURPOS >= 0 && CURPOS < 40 && !boxArtSlotLoaded[CURPOS]) {
+		tex().loadBoxArtToMem(boxArtPath, CURPOS);
+		boxArtSlotLoaded[CURPOS] = true;
+	}
+	if (!tex().drawBoxArt(boxArtPath, boxArtInMem)) { // Load box art
 		if (ms().theme == TWLSettings::ETheme3DS && !rocketVideo_topVisible) {
 			resumeRotatingCubesVideo();
 		}
@@ -2935,29 +2943,9 @@ void getFileInfo(SwitchState scrn, vector<vector<DirEntry>> dirContents, bool re
 					isHomebrew[i] = 0;
 				}
 
-				if (dsiFeatures() && !ms().macroMode && ms().showBoxArt == 2 && ms().theme != TWLSettings::EThemeHBL) {
-					snprintf(boxArtPath, sizeof(boxArtPath), "%s:/_nds/TWiLightMenu/boxart/%s.bmp",
-							 sys().isRunFromSD() ? "sd" : "fat",
-							 nameWithoutFolder(dirContents[scrn][i + PAGENUM * 40].name));
-					if (boxArtFileExists(boxArtPath) != 0) {
-						snprintf(boxArtPath, sizeof(boxArtPath), "%s:/_nds/TWiLightMenu/boxart/%s.png",
-								 sys().isRunFromSD() ? "sd" : "fat",
-								 nameWithoutFolder(dirContents[scrn][i + PAGENUM * 40].name));
-					}
-					if (!isDirectory[i] && (bnrRomType[i] == 0) && (boxArtFileExists(boxArtPath) != 0)) {
-						if (boxArtFileExists(boxArtPath) != 0) {
-							snprintf(boxArtPath, sizeof(boxArtPath), "%s:/_nds/TWiLightMenu/boxart/%s.bmp",
-									 (sys().isRunFromSD() ? "sd" : "fat"),
-									 gameTid[i]);
-						}
-						if (boxArtFileExists(boxArtPath) != 0) {
-							snprintf(boxArtPath, sizeof(boxArtPath), "%s:/_nds/TWiLightMenu/boxart/%s.png",
-									 (sys().isRunFromSD() ? "sd" : "fat"),
-									 gameTid[i]);
-						}
-					}
-					tex().loadBoxArtToMem(boxArtPath, i);
-				}
+				// Box art is read lazily, when this slot is selected (see updateBoxArt): reading the files of
+				// all 40 slots up front made every folder with a full page slow to open.
+				boxArtSlotLoaded[i] = false;
 			}
 			if (reSpawnBoxes)
 				spawnedtitleboxes++;
