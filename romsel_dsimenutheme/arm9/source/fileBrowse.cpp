@@ -2,6 +2,9 @@
 #include <algorithm>
 #include <dirent.h>
 #include <math.h>
+#include <set>
+#include <string.h>
+#include <ctype.h>
 #include <sstream>
 #include <stdio.h>
 #include <string>
@@ -714,6 +717,32 @@ void moveCursor(bool right, const std::vector<DirEntry> dirContents, int maxEntr
 	startBorderZoomOut = true;
 }
 
+// The boxart folder can hold hundreds of files and FAT searches a directory linearly, so every
+// access() on it is slow, and loading a page asks for dozens of names. Read the folder once and
+// answer the lookups from memory (names compared case-insensitively, like FAT does).
+static std::set<std::string> boxArtDirNames;
+static bool boxArtDirRead = false;
+static bool boxArtFileExists(const char *path) {
+	const char *slash = strrchr(path, '/');
+	if (slash == nullptr) return access(path, F_OK) == 0;
+	if (!boxArtDirRead) {
+		boxArtDirRead = true;
+		const std::string dirPath(path, slash - path + 1);
+		DIR *dir = opendir(dirPath.c_str());
+		if (dir != nullptr) {
+			while (dirent *ent = readdir(dir)) {
+				std::string name(ent->d_name);
+				for (char &c : name) c = tolower((unsigned char)c);
+				boxArtDirNames.insert(name);
+			}
+			closedir(dir);
+		}
+	}
+	if (boxArtDirNames.empty()) return access(path, F_OK) == 0; // couldn't read the folder
+	std::string name(slash + 1);
+	for (char &c : name) c = tolower((unsigned char)c);
+	return boxArtDirNames.count(name) != 0;
+}
 void updateBoxArt(void) {
 	if (!boxArtFound) return;
 	showSTARTborder = true;
@@ -724,14 +753,14 @@ void updateBoxArt(void) {
 	}
 
 	sprintf(boxArtPath, "%s:/_nds/TWiLightMenu/boxart/%s.bmp", sys().isRunFromSD() ? "sd" : "fat", boxArtFilename);
-	if (access(boxArtPath, F_OK) != 0) {
+	if (boxArtFileExists(boxArtPath) != 0) {
 		sprintf(boxArtPath, "%s:/_nds/TWiLightMenu/boxart/%s.png", sys().isRunFromSD() ? "sd" : "fat", boxArtFilename);
 	}
 	if (!isDirectory[CURPOS] && (bnrRomType[CURPOS] == 0)) {
-		if (access(boxArtPath, F_OK) != 0) {
+		if (boxArtFileExists(boxArtPath) != 0) {
 			sprintf(boxArtPath, "%s:/_nds/TWiLightMenu/boxart/%s.bmp", sys().isRunFromSD() ? "sd" : "fat", gameTid[CURPOS]);
 		}
-		if (access(boxArtPath, F_OK) != 0) {
+		if (boxArtFileExists(boxArtPath) != 0) {
 			sprintf(boxArtPath, "%s:/_nds/TWiLightMenu/boxart/%s.png", sys().isRunFromSD() ? "sd" : "fat", gameTid[CURPOS]);
 		}
 	}
@@ -2904,18 +2933,18 @@ void getFileInfo(SwitchState scrn, vector<vector<DirEntry>> dirContents, bool re
 					snprintf(boxArtPath, sizeof(boxArtPath), "%s:/_nds/TWiLightMenu/boxart/%s.bmp",
 							 sys().isRunFromSD() ? "sd" : "fat",
 							 nameWithoutFolder(dirContents[scrn][i + PAGENUM * 40].name));
-					if (access(boxArtPath, F_OK) != 0) {
+					if (boxArtFileExists(boxArtPath) != 0) {
 						snprintf(boxArtPath, sizeof(boxArtPath), "%s:/_nds/TWiLightMenu/boxart/%s.png",
 								 sys().isRunFromSD() ? "sd" : "fat",
 								 nameWithoutFolder(dirContents[scrn][i + PAGENUM * 40].name));
 					}
-					if (!isDirectory[i] && (bnrRomType[i] == 0) && (access(boxArtPath, F_OK) != 0)) {
-						if (access(boxArtPath, F_OK) != 0) {
+					if (!isDirectory[i] && (bnrRomType[i] == 0) && (boxArtFileExists(boxArtPath) != 0)) {
+						if (boxArtFileExists(boxArtPath) != 0) {
 							snprintf(boxArtPath, sizeof(boxArtPath), "%s:/_nds/TWiLightMenu/boxart/%s.bmp",
 									 (sys().isRunFromSD() ? "sd" : "fat"),
 									 gameTid[i]);
 						}
-						if (access(boxArtPath, F_OK) != 0) {
+						if (boxArtFileExists(boxArtPath) != 0) {
 							snprintf(boxArtPath, sizeof(boxArtPath), "%s:/_nds/TWiLightMenu/boxart/%s.png",
 									 (sys().isRunFromSD() ? "sd" : "fat"),
 									 gameTid[i]);
