@@ -4053,13 +4053,17 @@ std::string browseForFile(const std::vector<std::string_view> extensionList) {
 					if (favSlash != std::string::npos) {
 						const std::string favDir = entry->name.substr(0, favSlash);
 						const std::string favBase = entry->name.substr(favSlash + 1);
+						const std::string favRootCwd = favoritesCwd();
 						if (chdir(favDir.c_str()) != 0) {
 							snd().playWrong();
 							continue;
 						}
 						entry->name = favBase;
+						// The launch code needs romfolder to be the game's real folder ...
 						char favBuf[256];
 						ms().romfolder[ms().secondaryDevice] = std::string(getcwd(favBuf, 256));
+						// ... but after the game exits, return to the root folder
+						favoritesSetReturnDir(favRootCwd);
 					}
 					if (isValid[CURPOS] && !isTwlm[CURPOS]) {
 						loadPerGameSettings(dirContents[scrn].at(CURPOS + PAGENUM * 40).name);

@@ -45,6 +45,7 @@
 #include "gbaswitch.h"
 #include "ndsheaderbanner.h"
 #include "perGameSettings.h"
+#include "favorites.h"
 
 #include "graphics/fontHandler.h"
 #include "graphics/iconHandler.h"
@@ -1433,6 +1434,14 @@ int dsiMenuTheme(void) {
 				return std::find(ms().blockedExtensions.begin(), ms().blockedExtensions.end(), str) != ms().blockedExtensions.end();
 			});
 			extensionList.erase(toErase, extensionList.end());
+		}
+
+		// Favorites: after a game launched from a favorite entry, go back to the root folder
+		{
+			const std::string favReturnDir = favoritesTakeReturnDir();
+			if (!favReturnDir.empty()) {
+				ms().romfolder[ms().secondaryDevice] = favReturnDir;
+			}
 		}
 
 		char path[256] = {0};

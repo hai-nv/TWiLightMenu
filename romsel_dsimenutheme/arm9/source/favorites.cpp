@@ -9,19 +9,31 @@
 
 #include "common/inifile.h"
 
-// Defined in fileBrowse.cpp
-extern std::string recentlyPlayedIniPath;
+#include "common/systemdetails.h"
 
 // '|' cannot appear in FAT file names, so it is a safe separator
 static const char DELIM = '|';
 
 static std::string iniPath() {
-	std::string p = recentlyPlayedIniPath;
-	size_t pos = p.rfind('/');
-	if (pos == std::string::npos) {
-		return "sd:/_nds/TWiLightMenu/extras/favorites.ini";
+	return std::string(sys().isRunFromSD() ? "sd" : "fat") + ":/_nds/TWiLightMenu/extras/favorites.ini";
+}
+
+void favoritesSetReturnDir(const std::string &dir) {
+	const std::string path = iniPath();
+	CIniFile ini(path);
+	ini.SetString("FAVORITES", "RETURN_DIR", dir);
+	ini.SaveIniFile(path);
+}
+
+std::string favoritesTakeReturnDir() {
+	const std::string path = iniPath();
+	CIniFile ini(path);
+	std::string dir = ini.GetString("FAVORITES", "RETURN_DIR", "");
+	if (!dir.empty()) {
+		ini.SetString("FAVORITES", "RETURN_DIR", "");
+		ini.SaveIniFile(path);
 	}
-	return p.substr(0, pos + 1) + "favorites.ini";
+	return dir;
 }
 
 static bool fileExists(const std::string &p) {

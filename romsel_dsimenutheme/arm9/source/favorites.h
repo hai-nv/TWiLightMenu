@@ -5,7 +5,7 @@
 #include <vector>
 
 // Favorites: games stay in their folders, but favorited games are ALSO listed
-// in the "root" folder (default: <device>:/roms/nds/, editable via ROOT= in
+// in the "root" folder (default: top of the device, e.g. sd:/, editable via ROOT= in
 // favorites.ini). Entries are stored as absolute paths.
 
 // All stored favorites (absolute paths, e.g. "sd:/roms/nds/A/Game.nds")
@@ -13,6 +13,11 @@ std::vector<std::string> favoritesLoad();
 
 bool favoritesIsFav(const std::string &absPath);
 void favoritesSet(const std::string &absPath, bool fav);
+
+// One-shot "return here after the game exits" folder (used when a game is
+// launched from a favorite entry in the root folder).
+void favoritesSetReturnDir(const std::string &dir);
+std::string favoritesTakeReturnDir(); // returns and clears it ("" if none)
 
 // Current working directory with trailing slash
 std::string favoritesCwd();
