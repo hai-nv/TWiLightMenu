@@ -73,11 +73,11 @@ std::string favoritesRootDir() {
 	CIniFile ini(iniPath());
 	std::string root = ini.GetString("FAVORITES", "ROOT", "");
 	if (root.empty()) {
-		// Default: <device>:/roms/nds/ on the same device as the current folder
+		// Default: the very top of the current device, e.g. "sd:/" or "fat:/"
 		const std::string cwd = favoritesCwd();
 		size_t colon = cwd.find(':');
 		std::string dev = (colon == std::string::npos) ? "sd:" : cwd.substr(0, colon + 1);
-		root = dev + "/roms/nds/";
+		root = dev + "/";
 	}
 	if (root.back() != '/') root += '/';
 	return root;
