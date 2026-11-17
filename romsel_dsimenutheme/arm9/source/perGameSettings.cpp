@@ -1233,7 +1233,11 @@ void perGameSettings (std::string filename, bool* dsiBinariesFound, bool* dsiBin
 		if (!showPerGameSettings && !showCheats) {
 			printSmall(false, filenameXpos, botRowY, STR_A_OK, Alignment::right, FontPalette::dialog);
 		} else {
-			printSmall(false, filenameXpos, botRowY, showCheats ? STR_X_CHEATS_B_BACK : STR_B_BACK, Alignment::right, FontPalette::dialog);
+			std::string bottomHint = showCheats ? STR_X_CHEATS_B_BACK : STR_B_BACK;
+			if (showPerGameSettings) {
+				bottomHint = std::string(perGameSettings_favorite ? "Y: Unfav" : "Y: Fav") + "  " + bottomHint;
+			}
+			printSmall(false, filenameXpos, botRowY, bottomHint, Alignment::right, FontPalette::dialog);
 		}
 		updateText(false);
 		do {
@@ -1528,6 +1532,13 @@ void perGameSettings (std::string filename, bool* dsiBinariesFound, bool* dsiBin
 				}
 				(ms().theme == TWLSettings::EThemeSaturn) ? snd().playLaunch() : snd().playSelect();
 				perGameSettingsChanged = true;
+			}
+
+			if (pressed & KEY_Y) {
+				// Y toggles Favorite / Unfavorite
+				perGameSettings_favorite = !perGameSettings_favorite;
+				favoritesSet(perGameSettings_favPath, perGameSettings_favorite);
+				(ms().theme == TWLSettings::EThemeSaturn) ? snd().playLaunch() : snd().playSelect();
 			}
 
 			if (pressed & KEY_B) {
