@@ -27,6 +27,7 @@
 #include "iconTitle.h"
 #include "ndsheaderbanner.h"
 #include "perGameSettings.h"
+#include "favorites.h"
 #include "incompatibleGameMap.h"
 #include "compatibleDSiWareMap.h"
 #include "gbaswitch.h"
@@ -386,6 +387,15 @@ void getDirectoryContents(std::vector<DirEntry> &dirContents, const std::vector<
 				if (pent->d_type == DT_DIR)
 					fileStartPos++;
 			}
+		}
+
+		// Favorites: also list favorited games (from sub-folders) in the root folder.
+		// They are stored as paths relative to the current folder, e.g. "A/Game.nds".
+		for (const std::string &favRel : favoritesForCwd()) {
+			if (file_count > ((dsiFeatures() || sys().dsDebugRam()) ? 1024 : 512)) break;
+			dirContents.emplace_back(favRel, false, file_count, false);
+			logPrint("Favorite listed: %s\n", favRel.c_str());
+			file_count++;
 		}
 		recalculateBoxesCount();
 
@@ -4031,6 +4041,20 @@ std::string browseForFile(const std::vector<std::string_view> extensionList) {
 					settingsChanged = false;
 					return "null";
 				} else {
+					// Favorite listed in the root folder: enter its real folder first,
+					// then continue as if the game had been selected there.
+					const size_t favSlash = entry->name.rfind('/');
+					if (favSlash != std::string::npos) {
+						const std::string favDir = entry->name.substr(0, favSlash);
+						const std::string favBase = entry->name.substr(favSlash + 1);
+						if (chdir(favDir.c_str()) != 0) {
+							snd().playWrong();
+							continue;
+						}
+						entry->name = favBase;
+						char favBuf[256];
+						ms().romfolder[ms().secondaryDevice] = std::string(getcwd(favBuf, 256));
+					}
 					if (isValid[CURPOS] && !isTwlm[CURPOS]) {
 						loadPerGameSettings(dirContents[scrn].at(CURPOS + PAGENUM * 40).name);
 					}
@@ -4725,7 +4749,20 @@ std::string browseForFile(const std::vector<std::string_view> extensionList) {
 			}
 
 			if ((pressed & KEY_Y) && !ms().kioskMode && isValid[CURPOS] && !isTwlm[CURPOS] && !isDirectory[CURPOS] && bannerTextShown && showSTARTborder) {
-				perGameSettings(dirContents[scrn].at(CURPOS + PAGENUM * 40).name, &hasDsiBinaries, &dsiBinariesChecked);
+				{
+					const std::string yName = dirContents[scrn].at(CURPOS + PAGENUM * 40).name;
+					const size_t ySlash = yName.rfind('/');
+					if (ySlash != std::string::npos) {
+						// Favorite listed in root: open its settings from the real folder
+						const std::string rootCwd = favoritesCwd();
+						if (chdir(yName.substr(0, ySlash).c_str()) == 0) {
+							perGameSettings(yName.substr(ySlash + 1), &hasDsiBinaries, &dsiBinariesChecked);
+							chdir(rootCwd.c_str());
+						}
+					} else {
+						perGameSettings(yName, &hasDsiBinaries, &dsiBinariesChecked);
+					}
+				}
 				bannerTextShown = false;
 			}
 

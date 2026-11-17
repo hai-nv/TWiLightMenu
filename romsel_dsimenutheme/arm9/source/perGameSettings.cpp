@@ -1,4 +1,5 @@
 #include "perGameSettings.h"
+#include "favorites.h"
 #include <vector>
 #include <algorithm>
 #include <unistd.h>
@@ -112,7 +113,9 @@ char saveNoDisplay[8];
 
 static int firstPerGameOpShown = 0;
 static int perGameOps = -1;
-static int perGameOp[20] = {-1};
+static int perGameOp[24] = {-1};
+static bool perGameSettings_favorite = false;	// Favorite (listed in root folder as well)
+static std::string perGameSettings_favPath;	// Absolute path of the game for the favorites list
 
 bool blacklisted_colorLut = false;
 bool blacklisted_boostCpu = false;
@@ -704,7 +707,7 @@ void perGameSettings (std::string filename, bool* dsiBinariesFound, bool* dsiBin
 
 	firstPerGameOpShown = 0;
 	perGameOps = -1;
-	for (int i = 0; i < 20; i++) {
+	for (int i = 0; i < 24; i++) {
 		perGameOp[i] = -1;
 	}
 	if (isHomebrew[CURPOS]) {		// Per-game settings for homebrew
@@ -894,6 +897,14 @@ void perGameSettings (std::string filename, bool* dsiBinariesFound, bool* dsiBin
 				donorRomTextShown = false;
 			}
 		}
+	}
+
+	// Favorite option (last row of the per-game settings list)
+	if (showPerGameSettings && perGameOps < 22) {
+		perGameSettings_favPath = favoritesCwd() + filename;
+		perGameSettings_favorite = favoritesIsFav(perGameSettings_favPath);
+		perGameOps++;
+		perGameOp[perGameOps] = 20;	// Favorite
 	}
 
 	if (isHomebrew[CURPOS] && !largeArm9) {
@@ -1211,6 +1222,10 @@ void perGameSettings (std::string filename, bool* dsiBinariesFound, bool* dsiBin
 					printSmall(false, perGameOpEndXpos, perGameOpYpos, STR_OFF, endAlign, FontPalette::dialog);
 				}
 				break;
+			case 20:
+				printSmall(false, perGameOpStartXpos, perGameOpYpos, "Favorite:", startAlign, FontPalette::dialog);
+				printSmall(false, perGameOpEndXpos, perGameOpYpos, perGameSettings_favorite ? STR_ON : STR_OFF, endAlign, FontPalette::dialog);
+				break;
 		}
 		perGameOpYpos += 14;
 		}
@@ -1355,6 +1370,10 @@ void perGameSettings (std::string filename, bool* dsiBinariesFound, bool* dsiBin
 						if (perGameSettings_dsiWareSlot1Mode < -1) perGameSettings_dsiWareSlot1Mode = 1;
 						checkSaves(filenameForInfo, totalRomSize, pubSize, prvSize);
 						break;
+					case 20:
+						perGameSettings_favorite = !perGameSettings_favorite;
+						favoritesSet(perGameSettings_favPath, perGameSettings_favorite);
+						break;
 				}
 				(ms().theme == TWLSettings::EThemeSaturn) ? snd().playLaunch() : snd().playSelect();
 				perGameSettingsChanged = true;
@@ -1496,6 +1515,10 @@ void perGameSettings (std::string filename, bool* dsiBinariesFound, bool* dsiBin
 						break;
 					case 18:
 						if (pressed & KEY_A) remapButtons();
+						break;
+					case 20:
+						perGameSettings_favorite = !perGameSettings_favorite;
+						favoritesSet(perGameSettings_favPath, perGameSettings_favorite);
 						break;
 					case 19:
 						perGameSettings_dsiWareSlot1Mode++;
