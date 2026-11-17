@@ -31,6 +31,7 @@
 #include "common/dsiBanner.h"
 #include "common/tonccpy.h"
 #include "fileBrowse.h"
+#include "favorites.h"
 #include "graphics/fontHandler.h"
 #include "graphics/iconHandler.h"
 #include "common/lodepng.h"
@@ -1145,11 +1146,29 @@ void titleUpdate(bool isDir, std::string_view name, int num) {
 		if (theme_showdialogbox) {
 			infoFound[num] ? writeDialogTitle(cachedTitle[num]) : writeDialogTitle(u"???");
 		} else {
+			// Favorites get a "* " marker before the title
+			const bool isFav = favoritesIsFavEntry(std::string(name));
 			if ((ms().filenameDisplay == 0) && !infoFound[num]) {
 				std::string_view nameSubstr = name.substr(0, name.rfind('.'));
-				writeBannerText(nameSubstr, nameSubstr);
+				if (isFav) {
+					const std::string marked = "* " + std::string(nameSubstr);
+					writeBannerText(marked, marked);
+				} else {
+					writeBannerText(nameSubstr, nameSubstr);
+				}
+			} else if (infoFound[num]) {
+				if (isFav) {
+					writeBannerText(name, std::u16string(u"* ") + cachedTitle[num]);
+				} else {
+					writeBannerText(name, cachedTitle[num]);
+				}
 			} else {
-				infoFound[num] ? writeBannerText(name, cachedTitle[num]) : writeBannerText(name, name);
+				if (isFav) {
+					const std::string marked = "* " + std::string(name);
+					writeBannerText(marked, marked);
+				} else {
+					writeBannerText(name, name);
+				}
 			}
 		}
 	}

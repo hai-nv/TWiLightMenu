@@ -12,6 +12,10 @@
 std::vector<std::string> favoritesLoad();
 
 bool favoritesIsFav(const std::string &absPath);
+// Is the entry (name relative to the current folder) a favorite?
+bool favoritesIsFavEntry(const std::string &name);
+// Increases every time the favorites list changes
+int favoritesChangeCount();
 void favoritesSet(const std::string &absPath, bool fav);
 
 // One-shot "return here after the game exits" folder (used when a game is

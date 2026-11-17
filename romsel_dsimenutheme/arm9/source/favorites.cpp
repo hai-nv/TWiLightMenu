@@ -48,18 +48,37 @@ std::string favoritesCwd() {
 	return s;
 }
 
+// The list is cached in RAM so drawing titles doesn't read the SD card every time
+static std::vector<std::string> g_favCache;
+static bool g_favCacheLoaded = false;
+static int g_favVersion = 0;
+
 std::vector<std::string> favoritesLoad() {
-	CIniFile ini(iniPath());
-	std::vector<std::string> list;
-	ini.GetStringVector("FAVORITES", "LIST", list, DELIM);
-	// drop empty entries
-	list.erase(std::remove(list.begin(), list.end(), std::string()), list.end());
-	return list;
+	if (!g_favCacheLoaded) {
+		CIniFile ini(iniPath());
+		std::vector<std::string> list;
+		ini.GetStringVector("FAVORITES", "LIST", list, DELIM);
+		// drop empty entries
+		list.erase(std::remove(list.begin(), list.end(), std::string()), list.end());
+		g_favCache = list;
+		g_favCacheLoaded = true;
+	}
+	return g_favCache;
 }
 
 bool favoritesIsFav(const std::string &absPath) {
-	const std::vector<std::string> list = favoritesLoad();
-	return std::find(list.begin(), list.end(), absPath) != list.end();
+	favoritesLoad();
+	return std::find(g_favCache.begin(), g_favCache.end(), absPath) != g_favCache.end();
+}
+
+bool favoritesIsFavEntry(const std::string &name) {
+	// name is relative to the current folder ("Game.nds", or "A/Game.nds" for
+	// favorites listed in the root folder)
+	return favoritesIsFav(favoritesCwd() + name);
+}
+
+int favoritesChangeCount() {
+	return g_favVersion;
 }
 
 void favoritesSet(const std::string &absPath, bool fav) {
@@ -79,6 +98,9 @@ void favoritesSet(const std::string &absPath, bool fav) {
 	}
 	ini.SetStringVector("FAVORITES", "LIST", list, DELIM);
 	ini.SaveIniFile(path);
+	g_favCache = list;
+	g_favCacheLoaded = true;
+	g_favVersion++;
 }
 
 std::string favoritesRootDir() {

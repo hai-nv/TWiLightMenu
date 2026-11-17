@@ -4759,6 +4759,7 @@ std::string browseForFile(const std::vector<std::string_view> extensionList) {
 			}
 
 			if ((pressed & KEY_Y) && !ms().kioskMode && isValid[CURPOS] && !isTwlm[CURPOS] && !isDirectory[CURPOS] && bannerTextShown && showSTARTborder) {
+				const int favCountBefore = favoritesChangeCount();
 				{
 					const std::string yName = dirContents[scrn].at(CURPOS + PAGENUM * 40).name;
 					const size_t ySlash = yName.rfind('/');
@@ -4772,6 +4773,20 @@ std::string browseForFile(const std::vector<std::string_view> extensionList) {
 					} else {
 						perGameSettings(yName, &hasDsiBinaries, &dsiBinariesChecked);
 					}
+				}
+				if (favoritesChangeCount() != favCountBefore) {
+					// Favorites changed: rebuild the file list so the root folder updates right away
+					if (ms().showBoxArt)
+						clearBoxArt();
+					boxArtLoaded = false;
+					shouldersRendered = false;
+					showSTARTborder = false;
+					stopSoundPlayed = false;
+					clearText();
+					updateText(false);
+					ms().saveSettings();
+					settingsChanged = false;
+					return "null";
 				}
 				bannerTextShown = false;
 			}
