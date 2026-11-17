@@ -2,7 +2,6 @@
 #include <algorithm>
 #include <dirent.h>
 #include <math.h>
-#include <set>
 #include <string.h>
 #include <ctype.h>
 #include <sstream>
@@ -719,9 +718,18 @@ void moveCursor(bool right, const std::vector<DirEntry> dirContents, int maxEntr
 
 // The boxart folder can hold hundreds of files and FAT searches a directory linearly, so every
 // access() on it is slow, and loading a page asks for dozens of names. Read the folder once and
-// answer the lookups from memory (names compared case-insensitively, like FAT does).
-static std::set<std::string> boxArtDirNames;
+// answer the lookups from memory. Only a 32-bit hash of each lowercase name is kept (about 4
+// bytes per file); a hash collision would just make a missing image fail to load.
+static std::vector<u32> boxArtDirHashes;
 static bool boxArtDirRead = false;
+static u32 boxArtNameHash(const char *name) {
+	u32 h = 2166136261u;
+	for (; *name; name++) {
+		h ^= (u8)tolower((unsigned char)*name);
+		h *= 16777619u;
+	}
+	return h;
+}
 static bool boxArtFileExists(const char *path) {
 	const char *slash = strrchr(path, '/');
 	if (slash == nullptr) return access(path, F_OK) == 0;
@@ -731,17 +739,15 @@ static bool boxArtFileExists(const char *path) {
 		DIR *dir = opendir(dirPath.c_str());
 		if (dir != nullptr) {
 			while (dirent *ent = readdir(dir)) {
-				std::string name(ent->d_name);
-				for (char &c : name) c = tolower((unsigned char)c);
-				boxArtDirNames.insert(name);
+				boxArtDirHashes.push_back(boxArtNameHash(ent->d_name));
 			}
 			closedir(dir);
+			std::sort(boxArtDirHashes.begin(), boxArtDirHashes.end());
+			boxArtDirHashes.shrink_to_fit();
 		}
 	}
-	if (boxArtDirNames.empty()) return access(path, F_OK) == 0; // couldn't read the folder
-	std::string name(slash + 1);
-	for (char &c : name) c = tolower((unsigned char)c);
-	return boxArtDirNames.count(name) != 0;
+	if (boxArtDirHashes.empty()) return access(path, F_OK) == 0; // couldn't read the folder
+	return std::binary_search(boxArtDirHashes.begin(), boxArtDirHashes.end(), boxArtNameHash(slash + 1));
 }
 void updateBoxArt(void) {
 	if (!boxArtFound) return;
