@@ -4774,20 +4774,9 @@ std::string browseForFile(const std::vector<std::string_view> extensionList) {
 						perGameSettings(yName, &hasDsiBinaries, &dsiBinariesChecked);
 					}
 				}
-				if (favoritesChangeCount() != favCountBefore) {
-					// Favorites changed: rebuild the file list so the root folder updates right away
-					if (ms().showBoxArt)
-						clearBoxArt();
-					boxArtLoaded = false;
-					shouldersRendered = false;
-					showSTARTborder = false;
-					stopSoundPlayed = false;
-					clearText();
-					updateText(false);
-					ms().saveSettings();
-					settingsChanged = false;
-					return "null";
-				}
+				// No list reload here (it was slow). The "* " marker refreshes with the banner text
+				// below; the root list picks up the change the next time it is entered.
+				(void)favCountBefore;
 				bannerTextShown = false;
 			}
 
