@@ -2866,6 +2866,10 @@ bool selectMenu(void) {
 	return false;
 }
 
+// First grid slot getFileInfo() re-reads; 0 = the whole page. Set briefly by the
+// Favorites un-favorite path so only the slots that shifted are refreshed.
+static int getFileInfoStartSlot = 0;
+
 void getFileInfo(SwitchState scrn, vector<vector<DirEntry>> dirContents, bool reSpawnBoxes) {
 	if (nowLoadingDisplaying) {
 		clearText();
@@ -2875,7 +2879,7 @@ void getFileInfo(SwitchState scrn, vector<vector<DirEntry>> dirContents, bool re
 	}
 	if (reSpawnBoxes)
 		spawnedtitleboxes = 0;
-	for (int i = 0; i < 40; i++) {
+	for (int i = getFileInfoStartSlot; i < 40; i++) {
 		if (i + PAGENUM * 40 < file_count) {
 			isDirectory[i] = dirContents[scrn][i + PAGENUM * 40].isDirectory;
 			const std::string &std_romsel_filename = dirContents[scrn][i + PAGENUM * 40].name;
@@ -4774,9 +4778,41 @@ std::string browseForFile(const std::vector<std::string_view> extensionList) {
 						perGameSettings(yName, &hasDsiBinaries, &dsiBinariesChecked);
 					}
 				}
-				// No list reload here (it was slow). The "* " marker refreshes with the banner text
-				// below; the root list picks up the change the next time it is entered.
-				(void)favCountBefore;
+				if (favoritesChangeCount() != favCountBefore) {
+					// A favorite copy shown in the root list was un-favorited: drop just that entry
+					// and re-read only the slots that shifted, instead of reloading the whole list.
+					const int removeIdx = CURPOS + PAGENUM * 40;
+					const std::string rmName = dirContents[scrn].at(removeIdx).name;
+					if (rmName.find('/') != std::string::npos && !favoritesIsFav(favoritesCwd() + rmName)) {
+						dirContents[scrn].erase(dirContents[scrn].begin() + removeIdx);
+						file_count--;
+						if (ms().hideEmptyBoxes && spawnedtitleboxes > 0)
+							spawnedtitleboxes--;
+						if (CURPOS + PAGENUM * 40 >= file_count) {
+							if (CURPOS > 0) {
+								CURPOS--;
+							} else if (PAGENUM > 0) {
+								PAGENUM--;
+								CURPOS = 39;
+							}
+						}
+						recalculateBoxesCount();
+						getFileInfoStartSlot = std::min(removeIdx - PAGENUM * 40, CURPOS);
+						if (getFileInfoStartSlot < 0) getFileInfoStartSlot = 0;
+						getFileInfo(scrn, dirContents, false);
+						getFileInfoStartSlot = 0;
+						titleboxXdest[ms().secondaryDevice] = titleboxXpos[ms().secondaryDevice] = CURPOS * titleboxXspacing;
+						titlewindowXdest[ms().secondaryDevice] = titlewindowXpos[ms().secondaryDevice] = CURPOS * 5;
+						showRshoulder = (file_count > 40 + PAGENUM * 40);
+						if (ms().showBoxArt)
+							clearBoxArt();
+						boxArtLoaded = false;
+						shouldersRendered = false;
+						stopSoundPlayed = false;
+						clearText();
+						updateText(false);
+					}
+				}
 				bannerTextShown = false;
 			}
 
