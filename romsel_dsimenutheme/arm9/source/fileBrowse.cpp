@@ -768,6 +768,39 @@ static bool nameLessNoCase(const std::string &a, const std::string &b) {
 	return a.size() < b.size();
 }
 
+// Looks for the first game in "dir": games directly inside it come first (sorted by name),
+// then each sub-folder in name order, going down at most "depth" more levels.
+static bool findFirstGame(const std::string &dir, int depth, std::string &gameOut, std::string &pathOut) {
+	std::vector<std::string> games, subDirs;
+	DIR *d = opendir(dir.c_str());
+	if (d == nullptr) return false;
+	while (dirent *ent = readdir(d)) {
+		const std::string n = ent->d_name;
+		if (n.empty() || n[0] == '.') continue;
+		if (ent->d_type == DT_DIR) {
+			if (n != "saves") subDirs.push_back(n);
+		} else if (folderGameExt(n)) {
+			games.push_back(n);
+		}
+	}
+	closedir(d);
+
+	if (!games.empty()) {
+		gameOut = games[0];
+		for (size_t i = 1; i < games.size(); i++) {
+			if (nameLessNoCase(games[i], gameOut)) gameOut = games[i];
+		}
+		pathOut = dir + "/" + gameOut;
+		return true;
+	}
+	if (depth <= 0) return false;
+	std::sort(subDirs.begin(), subDirs.end(), nameLessNoCase);
+	for (size_t i = 0; i < subDirs.size(); i++) {
+		if (findFirstGame(dir + "/" + subDirs[i], depth - 1, gameOut, pathOut)) return true;
+	}
+	return false;
+}
+
 // Name (and game ID) of the first game inside "folder" (relative to the current directory)
 static void firstGameInFolder(const char *folder, std::string &nameOut, std::string &tidOut) {
 	static std::string cachedKey, cachedName, cachedTid;
@@ -782,17 +815,9 @@ static void firstGameInFolder(const char *folder, std::string &nameOut, std::str
 
 	nameOut.clear();
 	tidOut.clear();
-	DIR *dir = opendir(folder);
-	if (dir != nullptr) {
-		while (dirent *ent = readdir(dir)) {
-			if (ent->d_type == DT_DIR) continue;
-			const std::string n = ent->d_name;
-			if (folderGameExt(n) && (nameOut.empty() || nameLessNoCase(n, nameOut))) nameOut = n;
-		}
-		closedir(dir);
-	}
-	if (!nameOut.empty()) {
-		FILE *f = fopen((std::string(folder) + "/" + nameOut).c_str(), "rb");
+	std::string fullPath;
+	if (findFirstGame(folder, 3, nameOut, fullPath)) {
+		FILE *f = fopen(fullPath.c_str(), "rb");
 		if (f != nullptr) {
 			char tid[5] = {0};
 			if (fseek(f, 0xC, SEEK_SET) == 0 && fread(tid, 1, 4, f) == 4) tidOut = tid;
