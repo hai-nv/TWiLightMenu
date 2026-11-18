@@ -2955,14 +2955,16 @@ int titleMode(void)
 		ms().saveSettings();
 	}
 
+	bool bootSplashShown = false;
 	if (!softResetParamsFound && !(*(u32*)0x02000000 & BIT(3)) && ms().dsiSplash && ((REG_SCFG_EXT != 0 && !sys().i2cBricked() && ms().consoleModel < 2) ? fifoGetValue32(FIFO_USER_04) != 0x01 : !(*(u32*)0x02000000 & BIT(0)))) {
 		runGraphicIrq();
 		bootSplashInit();
+		bootSplashShown = true;
 		if (REG_SCFG_EXT != 0 && !sys().i2cBricked() && ms().consoleModel < 2) fifoSendValue32(FIFO_USER_04, 10);
 	}
 	*(u32*)0x02000000 |= BIT(0);
 
-	if (softResetParamsFound && !(*(u32*)0x02000000 & BIT(3))) {
+	if (!bootSplashShown && !(*(u32*)0x02000000 & BIT(3))) {
 		runGraphicIrq();
 		bootSplashLoading();
 	}
