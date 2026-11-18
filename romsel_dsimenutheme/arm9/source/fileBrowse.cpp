@@ -749,85 +749,6 @@ static bool boxArtFileExists(const char *path) {
 	if (boxArtDirHashes.empty()) return access(path, F_OK) == 0; // couldn't read the folder
 	return std::binary_search(boxArtDirHashes.begin(), boxArtDirHashes.end(), boxArtNameHash(slash + 1));
 }
-// A folder without a cover of its own borrows the cover of the first game inside it
-static bool folderGameExt(const std::string &n) {
-	if (n.empty() || n[0] == '.') return false;
-	const size_t dot = n.rfind('.');
-	if (dot == std::string::npos) return false;
-	std::string e = n.substr(dot + 1);
-	for (size_t i = 0; i < e.size(); i++) e[i] = (char)tolower((unsigned char)e[i]);
-	return e == "nds" || e == "dsi" || e == "srl" || e == "ids" || e == "app";
-}
-
-static bool nameLessNoCase(const std::string &a, const std::string &b) {
-	const size_t n = std::min(a.size(), b.size());
-	for (size_t i = 0; i < n; i++) {
-		const int ca = tolower((unsigned char)a[i]), cb = tolower((unsigned char)b[i]);
-		if (ca != cb) return ca < cb;
-	}
-	return a.size() < b.size();
-}
-
-// Looks for the first game in "dir": games directly inside it come first (sorted by name),
-// then each sub-folder in name order, going down at most "depth" more levels.
-static bool findFirstGame(const std::string &dir, int depth, std::string &gameOut, std::string &pathOut) {
-	std::vector<std::string> games, subDirs;
-	DIR *d = opendir(dir.c_str());
-	if (d == nullptr) return false;
-	while (dirent *ent = readdir(d)) {
-		const std::string n = ent->d_name;
-		if (n.empty() || n[0] == '.') continue;
-		if (ent->d_type == DT_DIR) {
-			if (n != "saves") subDirs.push_back(n);
-		} else if (folderGameExt(n)) {
-			games.push_back(n);
-		}
-	}
-	closedir(d);
-
-	if (!games.empty()) {
-		gameOut = games[0];
-		for (size_t i = 1; i < games.size(); i++) {
-			if (nameLessNoCase(games[i], gameOut)) gameOut = games[i];
-		}
-		pathOut = dir + "/" + gameOut;
-		return true;
-	}
-	if (depth <= 0) return false;
-	std::sort(subDirs.begin(), subDirs.end(), nameLessNoCase);
-	for (size_t i = 0; i < subDirs.size(); i++) {
-		if (findFirstGame(dir + "/" + subDirs[i], depth - 1, gameOut, pathOut)) return true;
-	}
-	return false;
-}
-
-// Name (and game ID) of the first game inside "folder" (relative to the current directory)
-static void firstGameInFolder(const char *folder, std::string &nameOut, std::string &tidOut) {
-	static std::string cachedKey, cachedName, cachedTid;
-	char cwd[256] = {0};
-	getcwd(cwd, sizeof(cwd));
-	const std::string key = std::string(cwd) + "|" + folder;
-	if (!cachedKey.empty() && key == cachedKey) {
-		nameOut = cachedName;
-		tidOut = cachedTid;
-		return;
-	}
-
-	nameOut.clear();
-	tidOut.clear();
-	std::string fullPath;
-	if (findFirstGame(folder, 0, nameOut, fullPath)) {
-		FILE *f = fopen(fullPath.c_str(), "rb");
-		if (f != nullptr) {
-			char tid[5] = {0};
-			if (fseek(f, 0xC, SEEK_SET) == 0 && fread(tid, 1, 4, f) == 4) tidOut = tid;
-			fclose(f);
-		}
-	}
-	cachedKey = key;
-	cachedName = nameOut;
-	cachedTid = tidOut;
-}
 // Which slots have had their box art file read into the cache (see tex().loadBoxArtToMem)
 static bool boxArtSlotLoaded[40] = {false};
 
@@ -852,20 +773,7 @@ void updateBoxArt(void) {
 			sprintf(boxArtPath, "%s:/_nds/TWiLightMenu/boxart/%s.png", sys().isRunFromSD() ? "sd" : "fat", gameTid[CURPOS]);
 		}
 	}
-	if (isDirectory[CURPOS] && !boxArtFileExists(boxArtPath)) {
-		// No cover named after the folder: use the cover of the first game inside it
-		std::string folder = boxArtFilename;
-		while (!folder.empty() && folder[folder.size() - 1] == '/') folder.resize(folder.size() - 1);
-		std::string game, tid;
-		if (!folder.empty()) firstGameInFolder(folder.c_str(), game, tid);
-		if (!game.empty()) {
-			const char *dev = sys().isRunFromSD() ? "sd" : "fat";
-			snprintf(boxArtPath, sizeof(boxArtPath), "%s:/_nds/TWiLightMenu/boxart/%s.bmp", dev, game.c_str());
-			if (!boxArtFileExists(boxArtPath)) snprintf(boxArtPath, sizeof(boxArtPath), "%s:/_nds/TWiLightMenu/boxart/%s.png", dev, game.c_str());
-			if (tid.size() == 4 && !boxArtFileExists(boxArtPath)) snprintf(boxArtPath, sizeof(boxArtPath), "%s:/_nds/TWiLightMenu/boxart/%s.bmp", dev, tid.c_str());
-			if (tid.size() == 4 && !boxArtFileExists(boxArtPath)) snprintf(boxArtPath, sizeof(boxArtPath), "%s:/_nds/TWiLightMenu/boxart/%s.png", dev, tid.c_str());
-		}
-	}	const bool boxArtInMem = (dsiFeatures() && ms().showBoxArt == 2);
+	const bool boxArtInMem = (dsiFeatures() && ms().showBoxArt == 2);
 	if (boxArtInMem && CURPOS >= 0 && CURPOS < 40 && !boxArtSlotLoaded[CURPOS]) {
 		tex().loadBoxArtToMem(boxArtPath, CURPOS);
 		boxArtSlotLoaded[CURPOS] = true;
