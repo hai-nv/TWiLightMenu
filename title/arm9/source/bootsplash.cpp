@@ -237,7 +237,7 @@ void bootSplashInit(void) {
 bool bootSplashLoading(void) {
 	const char *dev = sys().isRunFromSD() ? "sd" : "fat";
 	char topPath[256], botPath[256];
-	sprintf(topPath, "%s:/_nds/TWiLightMenu/extras/splashtop.gif", dev);
+	sprintf(topPath, "%s:/_nds/TWiLightMenu/extras/loadingtop.gif", dev);
 	sprintf(botPath, "%s:/_nds/TWiLightMenu/extras/splashbottom.gif", dev);
 	if (access(topPath, F_OK) != 0 || access(botPath, F_OK) != 0) {
 		return false;
