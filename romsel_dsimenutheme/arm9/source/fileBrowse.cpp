@@ -816,7 +816,7 @@ static void firstGameInFolder(const char *folder, std::string &nameOut, std::str
 	nameOut.clear();
 	tidOut.clear();
 	std::string fullPath;
-	if (findFirstGame(folder, 3, nameOut, fullPath)) {
+	if (findFirstGame(folder, 0, nameOut, fullPath)) {
 		FILE *f = fopen(fullPath.c_str(), "rb");
 		if (f != nullptr) {
 			char tid[5] = {0};
