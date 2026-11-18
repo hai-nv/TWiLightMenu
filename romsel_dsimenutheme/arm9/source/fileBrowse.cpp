@@ -16,6 +16,7 @@
 #include <nds/arm9/dldi.h>
 #include <fat.h>
 #include "fat_ext.h"
+#include "nand/nandio.h"
 
 #include "date.h"
 
@@ -483,10 +484,13 @@ void getDirectoryContents(std::vector<DirEntry> &dirContents, const std::vector<
 			logPrint("Custom");
 		}
 		logPrint("\n\n");
-		// Virtual shortcut at the start of the root folder: opens the DSi Menu (icon: icons/DSi Menu.dsimenu.png)
-		if (strcasecmp(favoritesCwd().c_str(), favoritesRootDir().c_str()) == 0) {
-			dirContents.insert(dirContents.begin(), DirEntry("DSi Menu.dsimenu", false, file_count, false));
-			file_count++;
+		// Virtual shortcuts at the start of the Utils folder (icons: icons/<name>.png)
+		if (strcasecmp(favoritesCwd().c_str(), (favoritesRootDir() + "Utils/").c_str()) == 0) {
+			static const char *const sysShortcuts[] = {"DSi Menu.dsimenu", "DSi Settings.dsisys", "DSi Camera.dsicam"};
+			for (int i = 2; i >= 0; i--) {
+				dirContents.insert(dirContents.begin(), DirEntry(sysShortcuts[i], false, file_count, false));
+				file_count++;
+			}
 			recalculateBoxesCount();
 		}
 		if (backFound) {
@@ -1564,6 +1568,38 @@ void exitToSystemMenu(void) {
 	fifoSendValue32(FIFO_USER_02, 1); // ReturntoDSiMenu
 }
 
+extern char launcherPath[256];
+
+// Launch a DSi system title (System Settings, Camera, ...) from the system NAND through Unlaunch.
+static bool launchNandSystemTitle(const char *typeDir, const char *idPrefix) {
+	u8 region = 0x4A; // JAP
+	switch (ms().sysRegion) {
+		case 1: region = 0x45; break; // USA
+		case 2: region = 0x50; break; // EUR
+		case 3: region = 0x55; break; // AUS
+		case 4: region = 0x43; break; // CHN
+		case 5: region = 0x4B; break; // KOR
+		default: break;
+	}
+	if (access("nand:/", F_OK) != 0) {
+		fatMountSimple("nand", &io_dsi_nand);
+	}
+	char tmdPath[96];
+	snprintf(tmdPath, sizeof(tmdPath), "nand:/title/%s/%s%02X/content/title.tmd", typeDir, idPrefix, region);
+	FILE *tmd = fopen(tmdPath, "rb");
+	if (!tmd) {
+		return false;
+	}
+	fseek(tmd, 0x1E7, SEEK_SET);
+	const int app = fgetc(tmd);
+	fclose(tmd);
+	if (app < 0) {
+		return false;
+	}
+	snprintf(launcherPath, 256, "nand:/title/%s/%s%02X/content/%08x.app", typeDir, idPrefix, region, app);
+	exitToSystemMenu();
+	return true;
+}
 void switchDevice(void) {
 	if (bothSDandFlashcard()) {
 		(ms().theme == TWLSettings::EThemeSaturn) ? snd().playLaunch() : snd().playSwitch();
@@ -4082,6 +4118,12 @@ std::string browseForFile(const std::vector<std::string_view> extensionList) {
 					return "null";
 				} else if (entry->name == "DSi Menu.dsimenu") {
 					exitToSystemMenu();
+					continue;
+				} else if (entry->name == "DSi Settings.dsisys" || entry->name == "DSi Camera.dsicam") {
+					const bool settingsApp = (entry->name == "DSi Settings.dsisys");
+					if (!launchNandSystemTitle(settingsApp ? "00030015" : "00030005", settingsApp ? "484E42" : "484E49")) {
+						snd().playWrong();
+					}
 					continue;
 				} else {
 					// Favorite listed in the root folder: enter its real folder first,
