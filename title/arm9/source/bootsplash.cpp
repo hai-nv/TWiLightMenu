@@ -259,9 +259,13 @@ bool bootSplashLoading(void) {
 	top.displayFrame();
 	bottom.displayFrame();
 
+	// Show the image immediately (no fade from white) and keep it until the next module takes over
 	controlTopBright = true;
 	controlBottomBright = true;
 	fadeType = true;
-	for (int i = 0; i < 20; i++) { swiWaitForVBlank(); }
+	screenBrightness = 0;
+	*(vu16*)0x0400006C = (1 << 14);
+	*(vu16*)0x0400106C = (1 << 14);
+	swiWaitForVBlank();
 	return true;
 }
