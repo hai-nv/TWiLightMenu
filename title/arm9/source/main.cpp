@@ -3033,7 +3033,7 @@ int titleMode(void)
 
 	// snprintf(vertext, sizeof(vertext), "Ver %d.%d.%d   ", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH); // Doesn't work :(
 
-	if (ms().showlogo && !(*(u32*)0x02000000 & BIT(1))) {
+	if (ms().showlogo && !(*(u32*)0x02000000 & BIT(1)) && !loadingScreenShown) { // The custom loading screen replaces the TWLMenu++ logo
 		runGraphicIrq();
 		loadTitleGraphics();
 		twlMenuVideo();
