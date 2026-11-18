@@ -39,6 +39,7 @@
 #include "graphics/paletteEffects.h"
 #include "graphics/queueControl.h"
 #include "graphics/ThemeConfig.h"
+#include "graphics/themefilenames.h"
 #include "graphics/ThemeTextures.h"
 #include "language.h"
 #include "ndsheaderbanner.h"
@@ -293,7 +294,10 @@ void getGameInfo(bool isDir, const char *name, int num, bool fromArgv) {
 	const CustomLauncher *customLauncher = (!isDir && name) ? findCustomLauncher(name) : NULL;
 	const bool bannerFromLauncher = (customLauncher && !customLauncher->bannerPath.empty());
 
-	if ((ms().showCustomIcons || bannerFromLauncher) && customIcon[num] < 2 && (!fromArgv || customIcon[num] <= 0)) {
+	// The Back entry ("..") can have an icon per theme: <theme folder>/back.png
+	const bool isBackEntry = (isDir && name && strcmp(name, "..") == 0);
+
+	if ((ms().showCustomIcons || bannerFromLauncher || isBackEntry) && customIcon[num] < 2 && (!fromArgv || customIcon[num] <= 0)) {
 		sNDSBannerExt &banner = bnriconTile[num];
 		bool argvHadPng = customIcon[num] == 1;
 		u8 iconCopy[512];
@@ -310,7 +314,12 @@ void getGameInfo(bool isDir, const char *name, int num, bool fromArgv) {
 		// The per-file lookups stay behind showCustomIcons; the ini banner does not.
 		bool customIconIsPng = false;
 		bool customIconFound = false;
-		if (ms().showCustomIcons) {
+		if (isBackEntry) {
+			snprintf(customIconPath, sizeof(customIconPath), "%s/back.png", tfn().uiDirectory().c_str());
+			customIconFound = (access(customIconPath, F_OK) == 0);
+			customIconIsPng = customIconFound;
+		}
+		if (!customIconFound && ms().showCustomIcons) {
 			snprintf(customIconPath, sizeof(customIconPath), "%s:/_nds/TWiLightMenu/icons/%s.bin", sys().isRunFromSD() ? "sd" : "fat", name);
 			customIconFound = (access(customIconPath, F_OK) == 0);
 			if (!customIconFound) {
