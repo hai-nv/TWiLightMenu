@@ -49,7 +49,7 @@ bool nandMounted = false;
 
 bool renderScreens = false;
 bool fadeType = false; // false = out, true = in
-bool fadeColor = true; // false = black, true = white
+bool fadeColor = false; // false = black, true = white
 extern bool controlTopBright;
 extern bool controlBottomBright;
 
@@ -118,11 +118,9 @@ void doPause(void)
 	scanKeys();
 }*/
 
-bool loadingScreenShown = false;
-
 void loadMainMenu()
 {
-	fadeColor = true;
+	fadeColor = false;
 	controlTopBright = true;
 	controlBottomBright = true;
 	fadeType = false;
@@ -141,16 +139,14 @@ void loadMainMenu()
 
 void loadROMselect(void)
 {
-	if (!loadingScreenShown) {
-		fadeColor = true;
-		controlTopBright = true;
-		controlBottomBright = true;
-		fadeType = false;
-		fifoSendValue32(FIFO_USER_01, 1); // Fade out sound
-		for (int i = 0; i < 25; i++)
-			swiWaitForVBlank();
-		fifoSendValue32(FIFO_USER_01, 0); // Cancel sound fade out
-	}
+	fadeColor = false;
+	controlTopBright = true;
+	controlBottomBright = true;
+	fadeType = false;
+	fifoSendValue32(FIFO_USER_01, 1); // Fade out sound
+	for (int i = 0; i < 25; i++)
+		swiWaitForVBlank();
+	fifoSendValue32(FIFO_USER_01, 0); // Cancel sound fade out
 
 	vector<char *> argarray;
 
@@ -2959,19 +2955,12 @@ int titleMode(void)
 		ms().saveSettings();
 	}
 
-	bool bootSplashShown = false;
 	if (!softResetParamsFound && !(*(u32*)0x02000000 & BIT(3)) && ms().dsiSplash && ((REG_SCFG_EXT != 0 && !sys().i2cBricked() && ms().consoleModel < 2) ? fifoGetValue32(FIFO_USER_04) != 0x01 : !(*(u32*)0x02000000 & BIT(0)))) {
 		runGraphicIrq();
 		bootSplashInit();
-		bootSplashShown = true;
 		if (REG_SCFG_EXT != 0 && !sys().i2cBricked() && ms().consoleModel < 2) fifoSendValue32(FIFO_USER_04, 10);
 	}
 	*(u32*)0x02000000 |= BIT(0);
-
-	if (!bootSplashShown && !(*(u32*)0x02000000 & BIT(3))) {
-		runGraphicIrq();
-		loadingScreenShown = bootSplashLoading();
-	}
 
 	if (access(sys().isRunFromSD() ? BOOTSTRAP_INI : BOOTSTRAP_INI_FC, F_OK) != 0) {
 		// Create "nds-bootstrap.ini"
@@ -3033,7 +3022,7 @@ int titleMode(void)
 
 	// snprintf(vertext, sizeof(vertext), "Ver %d.%d.%d   ", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH); // Doesn't work :(
 
-	if (ms().showlogo && !(*(u32*)0x02000000 & BIT(1)) && !loadingScreenShown) { // The custom loading screen replaces the TWLMenu++ logo
+	if (ms().showlogo && !(*(u32*)0x02000000 & BIT(1))) {
 		runGraphicIrq();
 		loadTitleGraphics();
 		twlMenuVideo();
@@ -3054,7 +3043,7 @@ int titleMode(void)
 		runGraphicIrq();
 		if (screenmode == 1) {
 			//unloadNds9iAsynch();
-			fadeColor = true;
+			fadeColor = false;
 			controlTopBright = true;
 			controlBottomBright = true;
 			fadeType = false;
