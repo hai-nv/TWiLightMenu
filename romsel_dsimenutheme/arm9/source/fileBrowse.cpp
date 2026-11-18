@@ -1570,8 +1570,8 @@ void exitToSystemMenu(void) {
 
 extern char launcherPath[256];
 
-// Launch a DSi system title (System Settings, Camera, ...) from the system NAND through Unlaunch.
-static bool launchNandSystemTitle(const char *typeDir, const char *idPrefix) {
+// Resolve the NAND .app of a DSi system title (System Menu / Settings / Camera) from its title.tmd.
+static bool nandSystemAppPath(const char *typeDir, const char *idPrefix, char *out, size_t outSize) {
 	u8 region = 0x4A; // JAP
 	switch (ms().sysRegion) {
 		case 1: region = 0x45; break; // USA
@@ -1596,7 +1596,23 @@ static bool launchNandSystemTitle(const char *typeDir, const char *idPrefix) {
 	if (app < 0) {
 		return false;
 	}
-	snprintf(launcherPath, 256, "nand:/title/%s/%s%02X/content/%08x.app", typeDir, idPrefix, region, app);
+	snprintf(out, outSize, "nand:/title/%s/%s%02X/content/%08x.app", typeDir, idPrefix, region, app);
+	return true;
+}
+
+// For the virtual Utils shortcuts: the NAND .app whose banner is used as their icon.
+bool getNandSystemAppPathByName(const char *name, char *out, size_t outSize) {
+	if (strcmp(name, "DSi Menu.dsimenu") == 0) return nandSystemAppPath("00030017", "484E41", out, outSize);
+	if (strcmp(name, "DSi Settings.dsisys") == 0) return nandSystemAppPath("00030015", "484E42", out, outSize);
+	if (strcmp(name, "DSi Camera.dsicam") == 0) return nandSystemAppPath("00030005", "484E49", out, outSize);
+	return false;
+}
+
+// Launch a DSi system title (System Settings, Camera, ...) from the system NAND through Unlaunch.
+static bool launchNandSystemTitle(const char *typeDir, const char *idPrefix) {
+	if (!nandSystemAppPath(typeDir, idPrefix, launcherPath, 256)) {
+		return false;
+	}
 	exitToSystemMenu();
 	return true;
 }

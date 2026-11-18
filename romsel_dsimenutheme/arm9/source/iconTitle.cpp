@@ -264,9 +264,17 @@ void clearTitle(int num) {
 	cachedTitle[num] = blankTitle;
 }
 
+extern bool getNandSystemAppPathByName(const char *name, char *out, size_t outSize);
+
 void getGameInfo(bool isDir, const char *name, int num, bool fromArgv) {
 	if (num == -1)
 		num = MOVING_APP_SLOT;
+
+	// Virtual Utils shortcuts (DSi Menu / Settings / Camera) use the banner of the real system title in NAND
+	char nandSysAppPath[96];
+	if (!isDir && name && getNandSystemAppPathByName(name, nandSysAppPath, sizeof(nandSysAppPath))) {
+		name = nandSysAppPath;
+	}
 
 	bnriconPalLine[num] = 0;
 	bnriconPalLoaded[num] = 0;
