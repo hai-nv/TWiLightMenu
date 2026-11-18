@@ -2962,6 +2962,11 @@ int titleMode(void)
 	}
 	*(u32*)0x02000000 |= BIT(0);
 
+	if (softResetParamsFound && !(*(u32*)0x02000000 & BIT(3))) {
+		runGraphicIrq();
+		bootSplashLoading();
+	}
+
 	if (access(sys().isRunFromSD() ? BOOTSTRAP_INI : BOOTSTRAP_INI_FC, F_OK) != 0) {
 		// Create "nds-bootstrap.ini"
 		bs().saveSettings();

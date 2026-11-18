@@ -231,3 +231,37 @@ void bootSplashInit(void) {
 	snd();
 	bootSplashDSi();
 }
+
+// Shown when returning from a game: display the custom splash images as a
+// static "loading" screen instead of a blank white screen.
+bool bootSplashLoading(void) {
+	const char *dev = sys().isRunFromSD() ? "sd" : "fat";
+	char topPath[256], botPath[256];
+	sprintf(topPath, "%s:/_nds/TWiLightMenu/extras/splashtop.gif", dev);
+	sprintf(botPath, "%s:/_nds/TWiLightMenu/extras/splashbottom.gif", dev);
+	if (access(topPath, F_OK) != 0 || access(botPath, F_OK) != 0) {
+		return false;
+	}
+
+	videoSetMode(MODE_5_2D);
+	videoSetModeSub(MODE_5_2D);
+	vramSetBankA(VRAM_A_MAIN_BG);
+	vramSetBankB(VRAM_B_MAIN_SPRITE);
+	vramSetBankC(VRAM_C_SUB_BG);
+
+	bgInit(3, BgType_Bmp8, BgSize_B8_256x256, 0, 0);
+	bgSetPriority(3, 3);
+	bgInitSub(3, BgType_Bmp8, BgSize_B8_256x256, 0, 0);
+	bgSetPriority(7, 3);
+
+	Gif top(topPath, true, false);
+	Gif bottom(botPath, false, false);
+	top.displayFrame();
+	bottom.displayFrame();
+
+	controlTopBright = true;
+	controlBottomBright = true;
+	fadeType = true;
+	for (int i = 0; i < 20; i++) { swiWaitForVBlank(); }
+	return true;
+}

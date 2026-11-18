@@ -25,6 +25,7 @@ extern "C" {
 
 void bootSplashDSi (void);
 void bootSplashInit (void);
+bool bootSplashLoading (void);
 
 #ifdef __cplusplus
 }
