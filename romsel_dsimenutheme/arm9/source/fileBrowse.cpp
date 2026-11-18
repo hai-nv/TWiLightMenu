@@ -57,6 +57,8 @@
 
 #include "graphics/queueControl.h"
 
+static void ensureSysShortcutIcon(const char *name);
+
 #define SCREEN_COLS 32
 #define ENTRIES_PER_SCREEN 15
 #define ENTRIES_START_ROW 3
@@ -488,7 +490,8 @@ void getDirectoryContents(std::vector<DirEntry> &dirContents, const std::vector<
 		if (strcasecmp(favoritesCwd().c_str(), (favoritesRootDir() + "Utils/").c_str()) == 0) {
 			static const char *const sysShortcuts[] = {"DSi Menu.dsimenu", "DSi Settings.dsisys", "DSi Camera.dsicam"};
 			for (int i = 2; i >= 0; i--) {
-				dirContents.insert(dirContents.begin(), DirEntry(sysShortcuts[i], false, file_count, false));
+				ensureSysShortcutIcon(sysShortcuts[i]);
+			dirContents.insert(dirContents.begin(), DirEntry(sysShortcuts[i], false, file_count, false));
 				file_count++;
 			}
 			recalculateBoxesCount();
@@ -1608,6 +1611,30 @@ bool getNandSystemAppPathByName(const char *name, char *out, size_t outSize) {
 	return false;
 }
 
+// Dump the real banner of a DSi system title (from NAND) to icons/<name>.bin once, so the
+// Utils shortcut shows the genuine system icon through the normal custom-banner path.
+static void ensureSysShortcutIcon(const char *name) {
+	char binPath[256];
+	snprintf(binPath, sizeof(binPath), "%s:/_nds/TWiLightMenu/icons/%s.bin", sys().isRunFromSD() ? "sd" : "fat", name);
+	if (access(binPath, F_OK) == 0) return;
+	char app[96];
+	if (!getNandSystemAppPathByName(name, app, sizeof(app))) return;
+	FILE *f = fopen(app, "rb");
+	if (!f) return;
+	u32 bannerOffset = 0;
+	fseek(f, 0x68, SEEK_SET);
+	fread(&bannerOffset, sizeof(u32), 1, f);
+	if (bannerOffset == 0) { fclose(f); return; }
+	static u8 buf[NDS_BANNER_SIZE_DSi];
+	fseek(f, bannerOffset, SEEK_SET);
+	const size_t r = fread(buf, 1, sizeof(buf), f);
+	fclose(f);
+	if (r < NDS_BANNER_SIZE_ORIGINAL) return;
+	FILE *o = fopen(binPath, "wb");
+	if (!o) return;
+	fwrite(buf, 1, r, o);
+	fclose(o);
+}
 // Launch a DSi system title (System Settings, Camera, ...) from the system NAND through Unlaunch.
 static bool launchNandSystemTitle(const char *typeDir, const char *idPrefix) {
 	if (!nandSystemAppPath(typeDir, idPrefix, launcherPath, 256)) {
