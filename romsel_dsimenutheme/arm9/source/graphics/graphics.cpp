@@ -1316,11 +1316,11 @@ void vBlankHandler() {
 						if (ms().theme == TWLSettings::ETheme3DS)
 							glSprite(spawnedboxXpos - titleboxXpos[ms().secondaryDevice],
 									 titleboxYpos, GL_FLIP_NONE,
-									 tex().folderImage());
+									 (customIcon[i] ? &tex().boxfullImage()[0] : tex().folderImage()));
 						else
 							glSprite(spawnedboxXpos - titleboxXpos[ms().secondaryDevice],
 									 (titleboxYpos - 3) + titleboxYposDropDown[i % 5],
-									 GL_FLIP_NONE, tex().folderImage());
+									 GL_FLIP_NONE, (customIcon[i] ? &tex().boxfullImage()[0] : tex().folderImage()));
 						if (customIcon[i])
 							drawIcon(iconXpos - titleboxXpos[ms().secondaryDevice],
 									 (titleboxYpos + iconYposOnTitleBox) + titleboxYposDropDown[i % 5],
@@ -1368,10 +1368,10 @@ void vBlankHandler() {
 				const int movingIconXpos = movingAppXpos + 16;
 				if (movingAppIsDir) {
 					if (ms().theme == TWLSettings::ETheme3DS)
-						glSprite(movingAppXpos, titleboxYpos - movingAppYpos, GL_FLIP_NONE, tex().folderImage());
+						glSprite(movingAppXpos, titleboxYpos - movingAppYpos, GL_FLIP_NONE, (customIcon[MOVING_APP_SLOT] ? &tex().boxfullImage()[0] : tex().folderImage()));
 					else
 						glSprite(movingAppXpos, titleboxYpos - movingAppYpos + titleboxYposDropDown[movingApp % 5],
-								 GL_FLIP_NONE, tex().folderImage());
+								 GL_FLIP_NONE, (customIcon[MOVING_APP_SLOT] ? &tex().boxfullImage()[0] : tex().folderImage()));
 					if (customIcon[MOVING_APP_SLOT])
 						drawIcon(movingIconXpos,
 								 (titleboxYpos + iconYposOnTitleBox) - movingAppYpos + titleboxYposDropDown[movingApp % 5],
@@ -1456,7 +1456,7 @@ void vBlankHandler() {
 
 		if (applaunchprep) {
 			if (isDirectory[CURPOS]) {
-				glSprite(96, 87 - titleboxYmovepos, GL_FLIP_NONE, tex().folderImage());
+				glSprite(96, 87 - titleboxYmovepos, GL_FLIP_NONE, (customIcon[CURPOS] ? &tex().boxfullImage()[0] : tex().folderImage()));
 				if (customIcon[CURPOS])
 					drawIcon(112, 96 - titleboxYmovepos, CURPOS);
 			} else {
