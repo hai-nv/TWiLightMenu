@@ -118,6 +118,8 @@ void doPause(void)
 	scanKeys();
 }*/
 
+bool loadingScreenShown = false;
+
 void loadMainMenu()
 {
 	fadeColor = true;
@@ -139,14 +141,16 @@ void loadMainMenu()
 
 void loadROMselect(void)
 {
-	fadeColor = true;
-	controlTopBright = true;
-	controlBottomBright = true;
-	fadeType = false;
-	fifoSendValue32(FIFO_USER_01, 1); // Fade out sound
-	for (int i = 0; i < 25; i++)
-		swiWaitForVBlank();
-	fifoSendValue32(FIFO_USER_01, 0); // Cancel sound fade out
+	if (!loadingScreenShown) {
+		fadeColor = true;
+		controlTopBright = true;
+		controlBottomBright = true;
+		fadeType = false;
+		fifoSendValue32(FIFO_USER_01, 1); // Fade out sound
+		for (int i = 0; i < 25; i++)
+			swiWaitForVBlank();
+		fifoSendValue32(FIFO_USER_01, 0); // Cancel sound fade out
+	}
 
 	vector<char *> argarray;
 
@@ -2966,7 +2970,7 @@ int titleMode(void)
 
 	if (!bootSplashShown && !(*(u32*)0x02000000 & BIT(3))) {
 		runGraphicIrq();
-		bootSplashLoading();
+		loadingScreenShown = bootSplashLoading();
 	}
 
 	if (access(sys().isRunFromSD() ? BOOTSTRAP_INI : BOOTSTRAP_INI_FC, F_OK) != 0) {
