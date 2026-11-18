@@ -1617,6 +1617,10 @@ static void ensureSysShortcutIcon(const char *name) {
 	char binPath[256];
 	snprintf(binPath, sizeof(binPath), "%s:/_nds/TWiLightMenu/icons/%s.bin", sys().isRunFromSD() ? "sd" : "fat", name);
 	if (access(binPath, F_OK) == 0) return;
+	// A hand-made PNG icon takes priority (the System Menu itself has no banner to dump)
+	char pngPath[256];
+	snprintf(pngPath, sizeof(pngPath), "%s:/_nds/TWiLightMenu/icons/%s.png", sys().isRunFromSD() ? "sd" : "fat", name);
+	if (access(pngPath, F_OK) == 0) return;
 	char app[96];
 	if (!getNandSystemAppPathByName(name, app, sizeof(app))) return;
 	FILE *f = fopen(app, "rb");
