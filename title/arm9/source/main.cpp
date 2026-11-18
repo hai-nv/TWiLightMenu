@@ -49,7 +49,7 @@ bool nandMounted = false;
 
 bool renderScreens = false;
 bool fadeType = false; // false = out, true = in
-bool fadeColor = false; // false = black, true = white
+bool fadeColor = true; // false = black, true = white
 extern bool controlTopBright;
 extern bool controlBottomBright;
 
@@ -120,7 +120,7 @@ void doPause(void)
 
 void loadMainMenu()
 {
-	fadeColor = false;
+	fadeColor = true;
 	controlTopBright = true;
 	controlBottomBright = true;
 	fadeType = false;
@@ -139,7 +139,7 @@ void loadMainMenu()
 
 void loadROMselect(void)
 {
-	fadeColor = false;
+	fadeColor = true;
 	controlTopBright = true;
 	controlBottomBright = true;
 	fadeType = false;
@@ -3043,7 +3043,7 @@ int titleMode(void)
 		runGraphicIrq();
 		if (screenmode == 1) {
 			//unloadNds9iAsynch();
-			fadeColor = false;
+			fadeColor = true;
 			controlTopBright = true;
 			controlBottomBright = true;
 			fadeType = false;

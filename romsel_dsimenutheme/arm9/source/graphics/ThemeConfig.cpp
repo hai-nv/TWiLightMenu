@@ -30,7 +30,7 @@ ThemeConfig::ThemeConfig()
 	_iconPCEUserPalette(false), _iconPLGUserPalette(false), _iconSettingsUserPalette(false), _iconSGUserPalette(false),
 	_iconSMSUserPalette(false), _iconSNESUserPalette(false), _iconUnknownUserPalette(false), _iconVIDUserPalette(false),
 	_iconWSUserPalette(false), _usernameUserPalette(true), _progressBarUserPalette(true),
-	_purpleBatteryAvailable(false), _renderPhoto(true), _darkLoading(true), _useAlphaBlend(true),
+	_purpleBatteryAvailable(false), _renderPhoto(true), _darkLoading(false), _useAlphaBlend(true),
 	_playStopSound(true), _playLidSound(true),
 	_playStartupJingle(false), _startupJingleDelayAdjust(0), _progressBarColor(0x7C00),
 	_fontPalette1(0x0000), _fontPalette2(0xDEF7), _fontPalette3(0xC631), _fontPalette4(0xA108),
