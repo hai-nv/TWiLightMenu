@@ -483,9 +483,9 @@ void getDirectoryContents(std::vector<DirEntry> &dirContents, const std::vector<
 			logPrint("Custom");
 		}
 		logPrint("\n\n");
-		// Virtual shortcut at the end of the root folder: opens the DSi Menu (icon: icons/DSi Menu.dsimenu.png)
+		// Virtual shortcut at the start of the root folder: opens the DSi Menu (icon: icons/DSi Menu.dsimenu.png)
 		if (strcasecmp(favoritesCwd().c_str(), favoritesRootDir().c_str()) == 0) {
-			dirContents.emplace_back("DSi Menu.dsimenu", false, file_count, false);
+			dirContents.insert(dirContents.begin(), DirEntry("DSi Menu.dsimenu", false, file_count, false));
 			file_count++;
 			recalculateBoxesCount();
 		}
