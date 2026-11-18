@@ -483,6 +483,12 @@ void getDirectoryContents(std::vector<DirEntry> &dirContents, const std::vector<
 			logPrint("Custom");
 		}
 		logPrint("\n\n");
+		// Virtual shortcut at the end of the root folder: opens the DSi Menu (icon: icons/DSi Menu.dsimenu.png)
+		if (strcasecmp(favoritesCwd().c_str(), favoritesRootDir().c_str()) == 0) {
+			dirContents.emplace_back("DSi Menu.dsimenu", false, file_count, false);
+			file_count++;
+			recalculateBoxesCount();
+		}
 		if (backFound) {
 			dirContents.insert(dirContents.begin(), {"..", true, backPos, false});
 		}
@@ -4074,6 +4080,9 @@ std::string browseForFile(const std::vector<std::string_view> extensionList) {
 					ms().saveSettings();
 					settingsChanged = false;
 					return "null";
+				} else if (entry->name == "DSi Menu.dsimenu") {
+					exitToSystemMenu();
+					continue;
 				} else {
 					// Favorite listed in the root folder: enter its real folder first,
 					// then continue as if the game had been selected there.
