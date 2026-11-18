@@ -2927,6 +2927,7 @@ void getFileInfo(SwitchState scrn, vector<vector<DirEntry>> dirContents, bool re
 			isDirectory[i] = dirContents[scrn][i + PAGENUM * 40].isDirectory;
 			const std::string &std_romsel_filename = dirContents[scrn][i + PAGENUM * 40].name;
 			getGameInfo(isDirectory[i], std_romsel_filename.c_str(), i);
+			boxArtSlotLoaded[i] = false; // folders and files alike, or a folder keeps the cover cached for that slot in the previous folder
 
 			if (isDirectory[i]) {
 				bnrWirelessIcon[i] = 0;
@@ -2945,7 +2946,7 @@ void getFileInfo(SwitchState scrn, vector<vector<DirEntry>> dirContents, bool re
 
 				// Box art is read lazily, when this slot is selected (see updateBoxArt): reading the files of
 				// all 40 slots up front made every folder with a full page slow to open.
-				boxArtSlotLoaded[i] = false;
+				// (reset for folders too: their covers are read lazily as well)
 			}
 			if (reSpawnBoxes)
 				spawnedtitleboxes++;
