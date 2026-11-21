@@ -1343,7 +1343,7 @@ void vBlankHandler() {
 									 GL_FLIP_NONE, &tex().settingsImage()[1]);
 						else
 							drawIcon(iconXpos - titleboxXpos[ms().secondaryDevice],
-										(titleboxYpos + iconYposOnTitleBox) + titleboxYposDropDown[i % 5],
+										(titleboxYpos + iconYposOnTitleBox - (bnrSlot1Tile[i] ? 3 : 0)) + titleboxYposDropDown[i % 5],
 										i);
 					}
 				} else {
@@ -1466,7 +1466,7 @@ void vBlankHandler() {
 				if (bnrSysSettings[CURPOS])
 					glSprite(96, 83 - titleboxYmovepos, GL_FLIP_NONE, &tex().settingsImage()[1]);
 				else
-					drawIcon(112, 96 - titleboxYmovepos, CURPOS);
+					drawIcon(112, (bnrSlot1Tile[CURPOS] ? 93 : 96) - titleboxYmovepos, CURPOS);
 			}
 			// Draw dots after selecting a game/app
 			dots().drawAuto();
