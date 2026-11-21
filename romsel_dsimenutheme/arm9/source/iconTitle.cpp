@@ -298,8 +298,10 @@ void getGameInfo(bool isDir, const char *name, int num, bool fromArgv) {
 
 	// The Back entry ("..") can have an icon per theme: <theme folder>/back.png
 	const bool isBackEntry = (isDir && name && strcmp(name, "..") == 0);
+	// Same for the Recent folder: <theme folder>/recent.png, then icons/Recent.png
+	const bool isRecentEntry = (isDir && name && strcasecmp(name, "Recent") == 0);
 
-	if ((ms().showCustomIcons || bannerFromLauncher || isBackEntry) && customIcon[num] < 2 && (!fromArgv || customIcon[num] <= 0)) {
+	if ((ms().showCustomIcons || bannerFromLauncher || isBackEntry || isRecentEntry) && customIcon[num] < 2 && (!fromArgv || customIcon[num] <= 0)) {
 		sNDSBannerExt &banner = bnriconTile[num];
 		bool argvHadPng = customIcon[num] == 1;
 		u8 iconCopy[512];
@@ -318,6 +320,11 @@ void getGameInfo(bool isDir, const char *name, int num, bool fromArgv) {
 		bool customIconFound = false;
 		if (isBackEntry) {
 			snprintf(customIconPath, sizeof(customIconPath), "%s/back.png", tfn().uiDirectory().c_str());
+			customIconFound = (access(customIconPath, F_OK) == 0);
+			customIconIsPng = customIconFound;
+		}
+		if (isRecentEntry) {
+			snprintf(customIconPath, sizeof(customIconPath), "%s/recent.png", tfn().uiDirectory().c_str());
 			customIconFound = (access(customIconPath, F_OK) == 0);
 			customIconIsPng = customIconFound;
 		}

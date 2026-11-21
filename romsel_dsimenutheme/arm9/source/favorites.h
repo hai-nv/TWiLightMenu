@@ -33,4 +33,17 @@ std::string favoritesRootDir();
 // relative to the cwd (e.g. "A/Game.nds"). Empty unless cwd is the root.
 std::vector<std::string> favoritesForCwd();
 
+// ---- Recent: the last games launched from any folder ----
+// A real (empty) "Recent" folder lives in the root folder; its contents are
+// injected here. Entries are absolute paths, newest first.
+
+// Is the current working directory the Recent folder?
+bool recentIsCwd();
+// Is the current working directory the root folder?
+bool recentIsRootCwd();
+// Record a launched game: cwd = folder it was launched from, name = file name in it
+void recentAdd(const std::string &cwd, const std::string &name);
+// The recent games that still exist (absolute paths, newest first); also prunes the saved list
+std::vector<std::string> recentList();
+
 #endif // FAVORITES_H

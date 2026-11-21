@@ -134,3 +134,72 @@ std::vector<std::string> favoritesForCwd() {
 	}
 	return out;
 }
+
+// ---- Recent ----
+static const size_t RECENT_MAX = 13;
+
+static std::string recentIniPath() {
+	return std::string(sys().isRunFromSD() ? "sd" : "fat") + ":/_nds/TWiLightMenu/extras/recent.ini";
+}
+
+bool recentIsRootCwd() {
+	return strcasecmp(favoritesCwd().c_str(), favoritesRootDir().c_str()) == 0;
+}
+
+bool recentIsCwd() {
+	return strcasecmp(favoritesCwd().c_str(), (favoritesRootDir() + "Recent/").c_str()) == 0;
+}
+
+void recentAdd(const std::string &cwd, const std::string &name) {
+	if (name.empty()) return;
+	std::string dir = cwd;
+	if (dir.empty() || dir.back() != '/') dir += '/';
+	// Never record from inside the Recent folder itself (entries there are absolute paths)
+	if (strcasecmp(dir.c_str(), (favoritesRootDir() + "Recent/").c_str()) == 0) return;
+	const std::string abs = (name.find('/') != std::string::npos && name.find(':') != std::string::npos) ? name : dir + name;
+
+	const std::string path = recentIniPath();
+	CIniFile ini(path);
+	std::vector<std::string> list;
+	ini.GetStringVector("RECENT", "LIST", list, DELIM);
+	list.erase(std::remove(list.begin(), list.end(), std::string()), list.end());
+	list.erase(std::remove_if(list.begin(), list.end(), [&](const std::string &s) { return strcasecmp(s.c_str(), abs.c_str()) == 0; }), list.end());
+	list.insert(list.begin(), abs);
+	if (list.size() > RECENT_MAX) list.resize(RECENT_MAX);
+	ini.SetStringVector("RECENT", "LIST", list, DELIM);
+	ini.SaveIniFile(path);
+}
+
+std::vector<std::string> recentList() {
+	const std::string path = recentIniPath();
+	CIniFile ini(path);
+	std::vector<std::string> list;
+	ini.GetStringVector("RECENT", "LIST", list, DELIM);
+	list.erase(std::remove(list.begin(), list.end(), std::string()), list.end());
+
+	// Same device as the current folder only (e.g. "sd:" or "fat:")
+	const std::string cwd = favoritesCwd();
+	const size_t colon = cwd.find(':');
+	const std::string dev = (colon == std::string::npos) ? std::string() : cwd.substr(0, colon + 1);
+
+	std::vector<std::string> out;
+	bool pruned = false;
+	for (const std::string &abs : list) {
+		const size_t c = abs.find(':');
+		const std::string d = (c == std::string::npos) ? std::string() : abs.substr(0, c + 1);
+		if (strcasecmp(d.c_str(), dev.c_str()) != 0) { out.push_back(abs); continue; } // other device: keep, but do not list
+		if (!fileExists(abs)) { pruned = true; continue; } // deleted or renamed: drop it
+		out.push_back(abs);
+	}
+	if (pruned) {
+		ini.SetStringVector("RECENT", "LIST", out, DELIM);
+		ini.SaveIniFile(path);
+	}
+	std::vector<std::string> shown;
+	for (const std::string &abs : out) {
+		const size_t c = abs.find(':');
+		const std::string d = (c == std::string::npos) ? std::string() : abs.substr(0, c + 1);
+		if (strcasecmp(d.c_str(), dev.c_str()) == 0) shown.push_back(abs);
+	}
+	return shown;
+}

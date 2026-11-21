@@ -24,6 +24,7 @@
 #include "errorScreen.h"
 #include "graphics/ThemeConfig.h"
 #include "graphics/ThemeTextures.h"
+#include "graphics/themefilenames.h"
 #include "graphics/fontHandler.h"
 #include "graphics/graphics.h"
 #include "graphics/iconHandler.h"
@@ -310,6 +311,11 @@ void getDirectoryContents(std::vector<DirEntry> &dirContents, const std::vector<
 		dirInfoIniFound = false;
 	}
 
+	// The Recent folder lives in the root folder; make sure it exists
+	if (recentIsRootCwd()) {
+		mkdir((favoritesRootDir() + "Recent").c_str(), 0777);
+	}
+
 	DIR *pdir = opendir(".");
 
 	if (pdir == nullptr) {
@@ -495,6 +501,26 @@ void getDirectoryContents(std::vector<DirEntry> &dirContents, const std::vector<
 				file_count++;
 			}
 			recalculateBoxesCount();
+		}
+		// Recent folder: the last launched games from every folder (absolute paths, newest first)
+		if (recentIsCwd()) {
+			for (const std::string &abs : recentList()) {
+				if (file_count > ((dsiFeatures() || sys().dsDebugRam()) ? 1024 : 512)) break;
+				dirContents.emplace_back(abs, false, file_count, false);
+				file_count++;
+			}
+			recalculateBoxesCount();
+		}
+		// Root folder: the Recent folder comes first
+		if (recentIsRootCwd()) {
+			auto recentIt = std::find_if(dirContents.begin(), dirContents.end(), [](const DirEntry &e) {
+				return e.isDirectory && strcasecmp(e.name.c_str(), "Recent") == 0;
+			});
+			if (recentIt != dirContents.end() && recentIt != dirContents.begin()) {
+				DirEntry recentEntry = *recentIt;
+				dirContents.erase(recentIt);
+				dirContents.insert(dirContents.begin(), recentEntry);
+			}
 		}
 		if (backFound) {
 			dirContents.insert(dirContents.begin(), {"..", true, backPos, false});
@@ -784,6 +810,14 @@ void updateBoxArt(void) {
 		}
 		if (!boxArtFileExists(boxArtPath)) {
 			sprintf(boxArtPath, "%s:/_nds/TWiLightMenu/boxart/%s.png", sys().isRunFromSD() ? "sd" : "fat", gameTid[CURPOS]);
+		}
+	}
+	if (isDirectory[CURPOS] && strcasecmp(boxArtFilename, "Recent") == 0) {
+		// The Recent folder can have a cover per theme: <theme folder>/recent_boxart.png
+		char themeArtPath[256];
+		snprintf(themeArtPath, sizeof(themeArtPath), "%s/recent_boxart.png", tfn().uiDirectory().c_str());
+		if (access(themeArtPath, F_OK) == 0) {
+			strcpy(boxArtPath, themeArtPath);
 		}
 	}
 	const bool boxArtInMem = (dsiFeatures() && ms().showBoxArt == 2);
@@ -4448,6 +4482,14 @@ std::string browseForFile(const std::vector<std::string_view> extensionList) {
 						snd().playLaunch();
 						controlTopBright = true;
 						applaunch = true;
+
+						{
+							// Remember this game for the Recent folder (any system, any folder)
+							char recentCwd[PATH_MAX] = {0};
+							getcwd(recentCwd, sizeof(recentCwd));
+							mkdir(sys().isRunFromSD() ? "sd:/_nds/TWiLightMenu/extras" : "fat:/_nds/TWiLightMenu/extras", 0777);
+							recentAdd(recentCwd, entry->name);
+						}
 
 						if (ms().theme == TWLSettings::EThemeDSi) {
 							applaunchprep = true;
