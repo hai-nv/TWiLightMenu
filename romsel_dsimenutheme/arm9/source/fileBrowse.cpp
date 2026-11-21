@@ -65,6 +65,7 @@ static bool slot1TileAvailable();
 static bool slot1CardPresent();
 static bool slot1TileChanged();
 static void slot1TileRefresh(bool force);
+static char slot1Tid[5] = {0}; // game code of the inserted cartridge ("" if none/unreadable)
 
 #define SCREEN_COLS 32
 #define ENTRIES_PER_SCREEN 15
@@ -861,6 +862,25 @@ void updateBoxArt(void) {
 		snprintf(themeArtPath2, sizeof(themeArtPath2), "%s/boxart/%s.png", tfn().uiDirectory().c_str(), boxArtFilename);
 		if (access(themeArtPath2, F_OK) == 0) {
 			strcpy(boxArtPath, themeArtPath2);
+		}
+	}
+	if (strcmp(boxArtFilename, "Slot-1.slot1") == 0) {
+		// Slot-1 tile: the cartridge's own cover (by game code) when there is one, otherwise a
+		// generic "card inserted" cover; a separate cover while the slot is empty.
+		const char *dev = sys().isRunFromSD() ? "sd" : "fat";
+		if (slot1CardPresent()) {
+			boxArtPath[0] = '\0';
+			if (slot1Tid[0]) {
+				sprintf(boxArtPath, "%s:/_nds/TWiLightMenu/boxart/%s.png", dev, slot1Tid);
+				if (!boxArtFileExists(boxArtPath)) {
+					sprintf(boxArtPath, "%s:/_nds/TWiLightMenu/boxart/%s.bmp", dev, slot1Tid);
+				}
+			}
+			if (!slot1Tid[0] || !boxArtFileExists(boxArtPath)) {
+				sprintf(boxArtPath, "%s:/_nds/TWiLightMenu/boxart/Slot-1 Card.png", dev);
+			}
+		} else {
+			sprintf(boxArtPath, "%s:/_nds/TWiLightMenu/boxart/Slot-1 Empty.png", dev);
 		}
 	}
 	const bool boxArtInMem = (dsiFeatures() && ms().showBoxArt == 2);
@@ -1781,6 +1801,7 @@ static void slot1TileRefresh(bool force) {
 	const bool present = slot1CardPresent();
 	if (!force && slot1LastPresent == (present ? 1 : 0)) return;
 	slot1LastPresent = present ? 1 : 0;
+	slot1Tid[0] = '\0';
 
 	if (!present) {
 		slot1WritePlaceholder(false);
@@ -1792,6 +1813,15 @@ static void slot1TileRefresh(bool force) {
 	// The card code uses timer 0, which the music stream runs on
 	snd().stopStream();
 	if (cardInit() == 0 && ndsCardHeader.bannerOffset >= 0x200) {
+		bool tidOk = true;
+		for (int i = 0; i < 4; i++) {
+			const char c = ndsCardHeader.gameCode[i];
+			if (!((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'))) tidOk = false;
+		}
+		if (tidOk) {
+			memcpy(slot1Tid, ndsCardHeader.gameCode, 4);
+			slot1Tid[4] = '\0';
+		}
 		toncset(buf, 0, sizeof(buf));
 		cardRead(ndsCardHeader.bannerOffset, buf, NDS_BANNER_SIZE_DSi, false);
 		const sNDSBannerExt *bn = (const sNDSBannerExt *)buf;
