@@ -494,8 +494,8 @@ void getDirectoryContents(std::vector<DirEntry> &dirContents, const std::vector<
 		logPrint("\n\n");
 		// Virtual shortcuts at the start of the Utils folder (icons: icons/<name>.png)
 		if (strcasecmp(favoritesCwd().c_str(), (favoritesRootDir() + "Utils/").c_str()) == 0) {
-			static const char *const sysShortcuts[] = {"DSi Menu.dsimenu", "DSi Settings.dsisys", "DSi Camera.dsicam"};
-			for (int i = 2; i >= 0; i--) {
+			static const char *const sysShortcuts[] = {"DSi Settings.dsisys", "DSi Camera.dsicam"};
+			for (int i = 1; i >= 0; i--) {
 				ensureSysShortcutIcon(sysShortcuts[i]);
 			dirContents.insert(dirContents.begin(), DirEntry(sysShortcuts[i], false, file_count, false));
 				file_count++;
@@ -521,6 +521,19 @@ void getDirectoryContents(std::vector<DirEntry> &dirContents, const std::vector<
 				dirContents.erase(recentIt);
 				dirContents.insert(dirContents.begin(), recentEntry);
 			}
+			// DSi Menu shortcut sits in the root, right after the Utils folder
+			ensureSysShortcutIcon("DSi Menu.dsimenu");
+			auto utilsIt = std::find_if(dirContents.begin(), dirContents.end(), [](const DirEntry &e) {
+				return e.isDirectory && strcasecmp(e.name.c_str(), "Utils") == 0;
+			});
+			DirEntry dsiMenuEntry("DSi Menu.dsimenu", false, file_count, false);
+			file_count++;
+			if (utilsIt != dirContents.end()) {
+				dirContents.insert(utilsIt + 1, dsiMenuEntry);
+			} else {
+				dirContents.push_back(dsiMenuEntry);
+			}
+			recalculateBoxesCount();
 		}
 		if (backFound) {
 			dirContents.insert(dirContents.begin(), {"..", true, backPos, false});
