@@ -299,7 +299,7 @@ void getGameInfo(bool isDir, const char *name, int num, bool fromArgv) {
 	// The Back entry ("..") can have an icon per theme: <theme folder>/back.png
 	const bool isBackEntry = (isDir && name && strcmp(name, "..") == 0);
 	// Same for the Recent folder: <theme folder>/recent.png, then icons/Recent.png
-	const bool isRecentEntry = (isDir && name && strcasecmp(name, "Recent") == 0);
+	const bool isRecentEntry = (isDir && name && strcasecmp(name, "Recently Played") == 0);
 
 	if ((ms().showCustomIcons || bannerFromLauncher || isBackEntry || isRecentEntry) && customIcon[num] < 2 && (!fromArgv || customIcon[num] <= 0)) {
 		sNDSBannerExt &banner = bnriconTile[num];

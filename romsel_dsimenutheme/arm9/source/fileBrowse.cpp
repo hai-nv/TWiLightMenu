@@ -313,7 +313,7 @@ void getDirectoryContents(std::vector<DirEntry> &dirContents, const std::vector<
 
 	// The Recent folder lives in the root folder; make sure it exists
 	if (recentIsRootCwd()) {
-		mkdir((favoritesRootDir() + "Recent").c_str(), 0777);
+		mkdir((favoritesRootDir() + "Recently Played").c_str(), 0777);
 	}
 
 	DIR *pdir = opendir(".");
@@ -436,7 +436,7 @@ void getDirectoryContents(std::vector<DirEntry> &dirContents, const std::vector<
 				}
 			}
 			sort(dirContents.begin(), dirContents.end(), dirEntryPredicate);
-			logPrint("Recent");
+			logPrint("Recently Played");
 		} else if (ms().sortMethod == TWLSettings::ESortMostPlayed) { // Most Played
 			CIniFile timesPlayedIni(timesPlayedIniPath);
 
@@ -514,7 +514,7 @@ void getDirectoryContents(std::vector<DirEntry> &dirContents, const std::vector<
 		// Root folder: the Recent folder comes first
 		if (recentIsRootCwd()) {
 			auto recentIt = std::find_if(dirContents.begin(), dirContents.end(), [](const DirEntry &e) {
-				return e.isDirectory && strcasecmp(e.name.c_str(), "Recent") == 0;
+				return e.isDirectory && strcasecmp(e.name.c_str(), "Recently Played") == 0;
 			});
 			if (recentIt != dirContents.end() && recentIt != dirContents.begin()) {
 				DirEntry recentEntry = *recentIt;
@@ -812,7 +812,7 @@ void updateBoxArt(void) {
 			sprintf(boxArtPath, "%s:/_nds/TWiLightMenu/boxart/%s.png", sys().isRunFromSD() ? "sd" : "fat", gameTid[CURPOS]);
 		}
 	}
-	if (isDirectory[CURPOS] && strcasecmp(boxArtFilename, "Recent") == 0) {
+	if (isDirectory[CURPOS] && strcasecmp(boxArtFilename, "Recently Played") == 0) {
 		// The Recent folder can have a cover per theme: <theme folder>/recent_boxart.png
 		char themeArtPath[256];
 		snprintf(themeArtPath, sizeof(themeArtPath), "%s/recent_boxart.png", tfn().uiDirectory().c_str());

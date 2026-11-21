@@ -147,7 +147,7 @@ bool recentIsRootCwd() {
 }
 
 bool recentIsCwd() {
-	return strcasecmp(favoritesCwd().c_str(), (favoritesRootDir() + "Recent/").c_str()) == 0;
+	return strcasecmp(favoritesCwd().c_str(), (favoritesRootDir() + "Recently Played/").c_str()) == 0;
 }
 
 void recentAdd(const std::string &cwd, const std::string &name) {
@@ -155,7 +155,7 @@ void recentAdd(const std::string &cwd, const std::string &name) {
 	std::string dir = cwd;
 	if (dir.empty() || dir.back() != '/') dir += '/';
 	// Never record from inside the Recent folder itself (entries there are absolute paths)
-	if (strcasecmp(dir.c_str(), (favoritesRootDir() + "Recent/").c_str()) == 0) return;
+	if (strcasecmp(dir.c_str(), (favoritesRootDir() + "Recently Played/").c_str()) == 0) return;
 	const std::string abs = (name.find('/') != std::string::npos && name.find(':') != std::string::npos) ? name : dir + name;
 
 	const std::string path = recentIniPath();
