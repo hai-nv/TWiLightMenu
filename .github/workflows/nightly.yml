@@ -1,6 +1,7 @@
 name: Build TWiLight Menu++ Nightly
 
 on:
+  workflow_dispatch:
   push:
     branches: ["*"]
     paths-ignore:
