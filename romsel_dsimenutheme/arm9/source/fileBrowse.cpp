@@ -4527,7 +4527,14 @@ std::string browseForFile(const std::vector<std::string_view> extensionList) {
 							mkdir(sys().isRunFromSD() ? "sd:/_nds/TWiLightMenu/extras" : "fat:/_nds/TWiLightMenu/extras", 0777);
 							// DS homebrew (apps) is not a game, so it is not recorded. isHomebrew is only
 							// worked out for DS files (bnrRomType 0); other systems are always games.
-							if (!(bnrRomType[CURPOS] == 0 && isHomebrew[CURPOS] == 1)) {
+							// Some real games (translations, hacks) fail the SDK signature check and look like
+							// homebrew, so a proper 4-character game code (A-Z, 0-9; homebrew uses "####") counts as a game.
+							bool recentHasGameCode = true;
+							for (int gi = 0; gi < 4; gi++) {
+								const char gc = gameTid[CURPOS][gi];
+								if (!((gc >= 'A' && gc <= 'Z') || (gc >= '0' && gc <= '9'))) recentHasGameCode = false;
+							}
+							if (!(bnrRomType[CURPOS] == 0 && isHomebrew[CURPOS] == 1 && !recentHasGameCode)) {
 								recentAdd(recentCwd, entry->name);
 							}
 						}
