@@ -1050,6 +1050,14 @@ void gbaSramAccess(bool open) {
 	}
 }
 
+// Diagnostic log for the real-sleep experiment: written + closed immediately so the last line survives a hang.
+static void sleepLog(const char *msg, int n) {
+	FILE *lf = fopen("sd:/_nds/TWiLightMenu/sleeplog.txt", "ab");
+	if (lf) {
+		fprintf(lf, "%s %d keys=%04X\n", msg, n, (unsigned)keysHeld());
+		fclose(lf);
+	}
+}
 void customSleep() {
 	bool topControlBak = controlTopBright;
 	bool botControlBak = controlBottomBright;
@@ -1072,18 +1080,25 @@ void customSleep() {
 		powerOff(PM_BACKLIGHT_TOP);
 	}
 	powerOff(PM_BACKLIGHT_BOTTOM);
-	// Blink the power LED like the stock DSi Menu does while asleep.
-	ledBlink(PM_LED_SLEEP);
+	// Real sleep: ask the ARM7 (libnds) to halt until the lid opens.
+	sleepLog("before PM_REQ_SLEEP", 0);
+	fifoSendValue32(FIFO_PM, PM_REQ_SLEEP_ENABLE);
+	fifoSendValue32(FIFO_PM, PM_REQ_SLEEP);
 	// No IRQ juggling here on purpose. This used to read
 	//   irqDisable(IRQ_VBLANK & IRQ_VCOUNT); ... irqEnable(IRQ_VBLANK & IRQ_VCOUNT);
 	// which was a no-op: IRQ_VBLANK is BIT(0) and IRQ_VCOUNT is BIT(2), so the AND is 0.
 	// Writing the intended IRQ_VBLANK | IRQ_VCOUNT would hang the console on lid close,
 	// because swiWaitForVBlank() below waits on exactly the vblank IRQ it would disable.
+	int sleepFrames = 0;
 	while (keysHeld() & KEY_LID) {
 		scanKeys();
 		swiWaitForVBlank();
+		sleepFrames++;
+		if (sleepFrames == 1 || sleepFrames == 60 || sleepFrames == 600) sleepLog("asleep frame", sleepFrames);
 	}
-	ledBlink(PM_LED_ON);
+	sleepLog("lid open seen after frames", sleepFrames);
+	fifoSendValue32(FIFO_PM, PM_REQ_SLEEP_DISABLE);
+	{ FILE *tf = fopen("sd:/_nds/TWiLightMenu/settings.ini", "rb"); sleepLog(tf ? "sd read ok" : "sd read FAILED", 0); if (tf) fclose(tf); }
 	if (ms().lidSound && tc().playLidSound()) {
 		snd().playLidOpen();
 	}
