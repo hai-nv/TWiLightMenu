@@ -548,16 +548,13 @@ void getDirectoryContents(std::vector<DirEntry> &dirContents, const std::vector<
 				return strcasecmp(e.name.c_str(), "Utils") == 0;
 			});
 			head.insert(utilsIt == head.end() ? head.end() : utilsIt + 1, dsiMenuEntry);
-			// The Slot-1 card sits right after Games (before Favorites): its game when a card is in, an empty slot when not
+			dirContents.insert(dirContents.begin(), head.begin(), head.end());
+			// The Slot-1 card is the last icon of the root: its game when a card is in, an empty slot when not
 			if (slot1TileAvailable()) {
 				slot1TileRefresh(false);
-				auto gamesIt = std::find_if(head.begin(), head.end(), [](const DirEntry &e) {
-					return e.isDirectory && strcasecmp(e.name.c_str(), "Games") == 0;
-				});
-				head.insert(gamesIt == head.end() ? head.begin() : gamesIt + 1, DirEntry("Slot-1.slot1", false, file_count, false));
+				dirContents.emplace_back("Slot-1.slot1", false, file_count, false);
 				file_count++;
 			}
-			dirContents.insert(dirContents.begin(), head.begin(), head.end());
 			recalculateBoxesCount();
 		}		if (backFound) {
 			dirContents.insert(dirContents.begin(), {"..", true, backPos, false});
