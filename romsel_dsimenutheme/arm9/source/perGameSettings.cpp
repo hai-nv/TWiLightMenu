@@ -63,6 +63,8 @@ extern bool dboxStopped;
 extern bool dbox_showIcon;
 
 bool perGameSettingsChanged = false;
+bool perGameSettingsFromRecent = false;		// Set by the file browser: the menu was opened from the Recently Played folder
+bool perGameSettingsRemovedRecent = false;	// Set here: the game was taken out of the recent list
 
 int perGameSettings_cursorPosition = 0;
 bool perGameSettings_directBoot = false;	// Homebrew only
@@ -1233,9 +1235,13 @@ void perGameSettings (std::string filename, bool* dsiBinariesFound, bool* dsiBin
 		if (!showPerGameSettings && !showCheats) {
 			printSmall(false, filenameXpos, botRowY, STR_A_OK, Alignment::right, FontPalette::dialog);
 		} else {
-			std::string bottomHint = showCheats ? STR_X_CHEATS_B_BACK : STR_B_BACK;
+			// X (cheats) is taken by "Remove" in the Recently Played folder
+			std::string bottomHint = (showCheats && !perGameSettingsFromRecent) ? STR_X_CHEATS_B_BACK : STR_B_BACK;
 			if (showPerGameSettings) {
-				bottomHint = std::string(perGameSettings_favorite ? "Y: Unfav" : "Y: Fav") + "  " + bottomHint;
+				// Button glyphs from the font (U+E002 = X, U+E003 = Y), like the \X and \Y of the language strings
+				std::string extra = std::string("\xEE\x80\x83") + (perGameSettings_favorite ? " Unfav" : " Fav") + "  ";
+				if (perGameSettingsFromRecent) extra += std::string("\xEE\x80\x82") + " Remove  ";
+				bottomHint = extra + bottomHint;
 			}
 			printSmall(false, filenameXpos, botRowY, bottomHint, Alignment::right, FontPalette::dialog);
 		}
@@ -1550,7 +1556,18 @@ void perGameSettings (std::string filename, bool* dsiBinariesFound, bool* dsiBin
 				break;
 			}
 		}
-		if ((pressed & KEY_X) && !isHomebrew[CURPOS] && showCheats) {
+		if ((pressed & KEY_X) && perGameSettingsFromRecent && showPerGameSettings) {
+			// Recently Played folder: X takes this game out of the list
+			recentRemove(perGameSettings_favPath);
+			perGameSettingsRemovedRecent = true;
+			snd().playBack();
+			if (perGameSettingsChanged) {
+				savePerGameSettings(filename);
+				perGameSettingsChanged = false;
+			}
+			break;
+		}
+		if ((pressed & KEY_X) && !isHomebrew[CURPOS] && showCheats && !perGameSettingsFromRecent) {
 			extern bool allowNewPhotoLoad;
 			if (!dsiFeatures()) {
 				// Unload music, SFX data, and photo buffer in DS mode to fit the cheat list

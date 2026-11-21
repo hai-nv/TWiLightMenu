@@ -224,6 +224,16 @@ void recentAdd(const std::string &cwd, const std::string &name) {
 	ini.SaveIniFile(path);
 }
 
+void recentRemove(const std::string &abs) {
+	const std::string path = recentIniPath();
+	CIniFile ini(path);
+	std::vector<std::string> list;
+	ini.GetStringVector("RECENT", "LIST", list, DELIM);
+	list.erase(std::remove_if(list.begin(), list.end(), [&](const std::string &s) { return s.empty() || strcasecmp(s.c_str(), abs.c_str()) == 0; }), list.end());
+	ini.SetStringVector("RECENT", "LIST", list, DELIM);
+	ini.SaveIniFile(path);
+}
+
 std::vector<std::string> recentList() {
 	const std::string path = recentIniPath();
 	CIniFile ini(path);

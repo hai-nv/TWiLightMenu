@@ -4969,6 +4969,9 @@ std::string browseForFile(const std::vector<std::string_view> extensionList) {
 
 			if ((pressed & KEY_Y) && !ms().kioskMode && isValid[CURPOS] && !isTwlm[CURPOS] && !isDirectory[CURPOS] && bannerTextShown && showSTARTborder) {
 				const int favCountBefore = favoritesChangeCount();
+				extern bool perGameSettingsFromRecent, perGameSettingsRemovedRecent;
+				perGameSettingsFromRecent = recentIsCwd();
+				perGameSettingsRemovedRecent = false;
 				{
 					const std::string yName = dirContents[scrn].at(CURPOS + PAGENUM * 40).name;
 					const size_t ySlash = yName.rfind('/');
@@ -4983,12 +4986,17 @@ std::string browseForFile(const std::vector<std::string_view> extensionList) {
 						perGameSettings(yName, &hasDsiBinaries, &dsiBinariesChecked);
 					}
 				}
-				if (favoritesChangeCount() != favCountBefore) {
-					// A favorite copy shown in the root list was un-favorited: drop just that entry
-					// and re-read only the slots that shifted, instead of reloading the whole list.
+				const bool removedFromRecent = perGameSettingsRemovedRecent;
+				const bool inRecentFolder = perGameSettingsFromRecent;
+				perGameSettingsFromRecent = false;
+				perGameSettingsRemovedRecent = false;
+				if (removedFromRecent || favoritesChangeCount() != favCountBefore) {
+					// A favorite copy shown in the root list was un-favorited, or a game was removed from
+					// the Recently Played list: drop just that entry and re-read only the slots that
+					// shifted, instead of reloading the whole list.
 					const int removeIdx = CURPOS + PAGENUM * 40;
 					const std::string rmName = dirContents[scrn].at(removeIdx).name;
-					if (rmName.find('/') != std::string::npos && !favoritesIsFavEntry(rmName)) {
+					if (removedFromRecent || (!inRecentFolder && rmName.find('/') != std::string::npos && !favoritesIsFavEntry(rmName))) {
 						dirContents[scrn].erase(dirContents[scrn].begin() + removeIdx);
 						file_count--;
 						if (ms().hideEmptyBoxes && spawnedtitleboxes > 0)

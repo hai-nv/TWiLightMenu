@@ -47,6 +47,8 @@ bool recentIsCwd();
 bool recentIsRootCwd();
 // Record a launched game: cwd = folder it was launched from, name = file name in it
 void recentAdd(const std::string &cwd, const std::string &name);
+// Take a game out of the recent list (absolute path)
+void recentRemove(const std::string &absPath);
 // The recent games that still exist (absolute paths, newest first); also prunes the saved list
 std::vector<std::string> recentList();
 
