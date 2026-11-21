@@ -835,8 +835,8 @@ void updateBoxArt(void) {
 			strcpy(boxArtPath, themeArtPath);
 		}
 	}
-	{
-		// Any entry can have a cover per theme: <theme folder>/boxart/<name>.png
+	if (isDirectory[CURPOS] || extension(boxArtFilename, {".dsimenu", ".dsisys", ".dsicam"})) {
+		// Folders and the DSi shortcuts can have a cover per theme: <theme folder>/boxart/<name>.png
 		char themeArtPath2[256];
 		snprintf(themeArtPath2, sizeof(themeArtPath2), "%s/boxart/%s.png", tfn().uiDirectory().c_str(), boxArtFilename);
 		if (access(themeArtPath2, F_OK) == 0) {
