@@ -783,6 +783,10 @@ void moveCursor(bool right, const std::vector<DirEntry> dirContents, int maxEntr
 	startBorderZoomOut = true;
 }
 
+// Diagnostic: mark the moment of the call, so the copy of the by-value directory list (made before
+// the function body starts) shows up as the time until the 'key pressed' mark
+#define moveCursor(...) (perfMark("input: calling moveCursor (arguments get copied here)"), (moveCursor)(__VA_ARGS__))
+
 // The boxart folder can hold hundreds of files and FAT searches a directory linearly, so every
 // access() on it is slow, and loading a page asks for dozens of names. Read the folder once and
 // answer the lookups from memory. Only a 32-bit hash of each lowercase name is kept (about 4
