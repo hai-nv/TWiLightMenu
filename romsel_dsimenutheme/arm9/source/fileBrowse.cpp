@@ -820,6 +820,14 @@ void updateBoxArt(void) {
 			strcpy(boxArtPath, themeArtPath);
 		}
 	}
+	{
+		// Any entry can have a cover per theme: <theme folder>/boxart/<name>.png
+		char themeArtPath2[256];
+		snprintf(themeArtPath2, sizeof(themeArtPath2), "%s/boxart/%s.png", tfn().uiDirectory().c_str(), boxArtFilename);
+		if (access(themeArtPath2, F_OK) == 0) {
+			strcpy(boxArtPath, themeArtPath2);
+		}
+	}
 	const bool boxArtInMem = (dsiFeatures() && ms().showBoxArt == 2);
 	if (boxArtInMem && CURPOS >= 0 && CURPOS < 40 && !boxArtSlotLoaded[CURPOS]) {
 		tex().loadBoxArtToMem(boxArtPath, CURPOS);

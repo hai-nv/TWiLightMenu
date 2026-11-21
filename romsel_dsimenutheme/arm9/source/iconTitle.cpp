@@ -328,6 +328,12 @@ void getGameInfo(bool isDir, const char *name, int num, bool fromArgv) {
 			customIconFound = (access(customIconPath, F_OK) == 0);
 			customIconIsPng = customIconFound;
 		}
+		// Any entry can have an icon per theme: <theme folder>/icons/<name>.png
+		if (!customIconFound && ms().showCustomIcons && name) {
+			snprintf(customIconPath, sizeof(customIconPath), "%s/icons/%s.png", tfn().uiDirectory().c_str(), name);
+			customIconFound = (access(customIconPath, F_OK) == 0);
+			customIconIsPng = customIconFound;
+		}
 		if (!customIconFound && ms().showCustomIcons) {
 			snprintf(customIconPath, sizeof(customIconPath), "%s:/_nds/TWiLightMenu/icons/%s.bin", sys().isRunFromSD() ? "sd" : "fat", name);
 			customIconFound = (access(customIconPath, F_OK) == 0);
