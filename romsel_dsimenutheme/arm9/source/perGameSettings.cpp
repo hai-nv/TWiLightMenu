@@ -901,8 +901,10 @@ void perGameSettings (std::string filename, bool* dsiBinariesFound, bool* dsiBin
 		}
 	}
 
-	// Favorite option (last row of the per-game settings list)
-	if (showPerGameSettings && perGameOps < 22) {
+	perGameSettings_favPath = favoritesCwd() + filename;	// Also used to remove the game from the recent list
+
+	// Favorite option (last row of the per-game settings list; not in the Recently Played folder)
+	if (showPerGameSettings && perGameOps < 22 && !perGameSettingsFromRecent) {
 		perGameSettings_favPath = favoritesCwd() + filename;
 		perGameSettings_favorite = favoritesIsFav(perGameSettings_favPath);
 		perGameOps++;
@@ -1235,13 +1237,11 @@ void perGameSettings (std::string filename, bool* dsiBinariesFound, bool* dsiBin
 		if (!showPerGameSettings && !showCheats) {
 			printSmall(false, filenameXpos, botRowY, STR_A_OK, Alignment::right, FontPalette::dialog);
 		} else {
-			// X (cheats) is taken by "Remove" in the Recently Played folder
-			std::string bottomHint = (showCheats && !perGameSettingsFromRecent) ? STR_X_CHEATS_B_BACK : STR_B_BACK;
+			std::string bottomHint = showCheats ? STR_X_CHEATS_B_BACK : STR_B_BACK;
 			if (showPerGameSettings) {
-				// Button glyphs from the font (U+E002 = X, U+E003 = Y), like the \X and \Y of the language strings
-				std::string extra = std::string("\xEE\x80\x83") + (perGameSettings_favorite ? " Unfav" : " Fav") + "  ";
-				if (perGameSettingsFromRecent) extra += std::string("\xEE\x80\x82") + " Remove  ";
-				bottomHint = extra + bottomHint;
+				// Button glyph from the font (U+E003 = Y), like the \Y of the language strings
+				const char *yAction = perGameSettingsFromRecent ? " Remove" : (perGameSettings_favorite ? " Unfav" : " Fav");
+				bottomHint = std::string("\xEE\x80\x83") + yAction + "  " + bottomHint;
 			}
 			printSmall(false, filenameXpos, botRowY, bottomHint, Alignment::right, FontPalette::dialog);
 		}
@@ -1540,7 +1540,17 @@ void perGameSettings (std::string filename, bool* dsiBinariesFound, bool* dsiBin
 				perGameSettingsChanged = true;
 			}
 
-			if (pressed & KEY_Y) {
+			if ((pressed & KEY_Y) && perGameSettingsFromRecent) {
+				// Recently Played folder: Y takes this game out of the list
+				recentRemove(perGameSettings_favPath);
+				perGameSettingsRemovedRecent = true;
+				snd().playBack();
+				if (perGameSettingsChanged) {
+					savePerGameSettings(filename);
+					perGameSettingsChanged = false;
+				}
+				break;
+			} else if (pressed & KEY_Y) {
 				// Y toggles Favorite / Unfavorite
 				perGameSettings_favorite = !perGameSettings_favorite;
 				favoritesSet(perGameSettings_favPath, perGameSettings_favorite);
@@ -1556,18 +1566,7 @@ void perGameSettings (std::string filename, bool* dsiBinariesFound, bool* dsiBin
 				break;
 			}
 		}
-		if ((pressed & KEY_X) && perGameSettingsFromRecent && showPerGameSettings) {
-			// Recently Played folder: X takes this game out of the list
-			recentRemove(perGameSettings_favPath);
-			perGameSettingsRemovedRecent = true;
-			snd().playBack();
-			if (perGameSettingsChanged) {
-				savePerGameSettings(filename);
-				perGameSettingsChanged = false;
-			}
-			break;
-		}
-		if ((pressed & KEY_X) && !isHomebrew[CURPOS] && showCheats && !perGameSettingsFromRecent) {
+		if ((pressed & KEY_X) && !isHomebrew[CURPOS] && showCheats) {
 			extern bool allowNewPhotoLoad;
 			if (!dsiFeatures()) {
 				// Unload music, SFX data, and photo buffer in DS mode to fit the cheat list
