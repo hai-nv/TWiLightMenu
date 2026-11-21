@@ -1072,6 +1072,8 @@ void customSleep() {
 		powerOff(PM_BACKLIGHT_TOP);
 	}
 	powerOff(PM_BACKLIGHT_BOTTOM);
+	// Blink the power LED like the stock DSi Menu does while asleep.
+	ledBlink(PM_LED_SLEEP);
 	// No IRQ juggling here on purpose. This used to read
 	//   irqDisable(IRQ_VBLANK & IRQ_VCOUNT); ... irqEnable(IRQ_VBLANK & IRQ_VCOUNT);
 	// which was a no-op: IRQ_VBLANK is BIT(0) and IRQ_VCOUNT is BIT(2), so the AND is 0.
@@ -1081,6 +1083,7 @@ void customSleep() {
 		scanKeys();
 		swiWaitForVBlank();
 	}
+	ledBlink(PM_LED_ON);
 	if (ms().lidSound && tc().playLidSound()) {
 		snd().playLidOpen();
 	}
