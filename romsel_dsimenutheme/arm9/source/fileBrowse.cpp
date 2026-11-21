@@ -30,6 +30,8 @@
 #include "graphics/iconHandler.h"
 #include "iconTitle.h"
 #include "ndsheaderbanner.h"
+#include "read_card.h"
+#include "slot1Icons.h"
 #include "perGameSettings.h"
 #include "favorites.h"
 #include "incompatibleGameMap.h"
@@ -59,6 +61,10 @@
 #include "graphics/queueControl.h"
 
 static void ensureSysShortcutIcon(const char *name);
+static bool slot1TileAvailable();
+static bool slot1CardPresent();
+static bool slot1TileChanged();
+static void slot1TileRefresh(bool force);
 
 #define SCREEN_COLS 32
 #define ENTRIES_PER_SCREEN 15
@@ -541,6 +547,12 @@ void getDirectoryContents(std::vector<DirEntry> &dirContents, const std::vector<
 				return strcasecmp(e.name.c_str(), "Utils") == 0;
 			});
 			head.insert(utilsIt == head.end() ? head.end() : utilsIt + 1, dsiMenuEntry);
+			// The Slot-1 card is the first icon, like in the System Menu: its game when a card is in, an empty slot when not
+			if (slot1TileAvailable()) {
+				slot1TileRefresh(false);
+				head.insert(head.begin(), DirEntry("Slot-1.slot1", false, file_count, false));
+				file_count++;
+			}
 			dirContents.insert(dirContents.begin(), head.begin(), head.end());
 			recalculateBoxesCount();
 		}		if (backFound) {
@@ -1717,6 +1729,110 @@ static bool launchNandSystemTitle(const char *typeDir, const char *idPrefix) {
 	}
 	exitToSystemMenu();
 	return true;
+}
+// ---- Slot-1 tile: the first icon at the root, like in the System Menu ----
+static int slot1LastPresent = -1; // -1: not read yet
+
+static bool slot1TileAvailable() {
+	return isDSiMode() && !flashcardFound() && !ms().secondaryDevice;
+}
+
+static bool slot1CardPresent() {
+	return REG_SCFG_MC != 0x11;
+}
+
+// True when a card was put in or taken out since the icon was last built
+static bool slot1TileChanged() {
+	return slot1LastPresent != -1 && slot1LastPresent != (slot1CardPresent() ? 1 : 0);
+}
+
+// The tile's icon goes through the normal custom-banner path: icons/Slot-1.slot1.bin
+static void slot1WriteBanner(const void *data, size_t size) {
+	const char *dev = sys().isRunFromSD() ? "sd" : "fat";
+	char dirPath[256];
+	snprintf(dirPath, sizeof(dirPath), "%s:/_nds/TWiLightMenu/icons", dev);
+	mkdir(dirPath, 0777);
+	char binPath[256];
+	snprintf(binPath, sizeof(binPath), "%s/Slot-1.slot1.bin", dirPath);
+	const bool existed = (access(binPath, F_OK) == 0);
+	FILE *o = fopen(binPath, "wb");
+	if (!o) return;
+	fwrite(data, 1, size, o);
+	fclose(o);
+	if (!existed) iconDirCacheInvalidate(); // icons/ has a new file the cached listing does not know
+}
+
+// Empty slot (light) or a card that cannot be read (dark): a banner made from the built-in icon
+static void slot1WritePlaceholder(bool dark) {
+	static sNDSBannerExt b; // big, keep it off the stack
+	toncset(&b, 0, sizeof(b));
+	b.version = NDS_BANNER_VER_ORIGINAL;
+	tonccpy(b.icon, dark ? slot1Icon_dark_tiles : slot1Icon_empty_tiles, sizeof(b.icon));
+	tonccpy(b.palette, dark ? slot1Icon_dark_pal : slot1Icon_empty_pal, sizeof(b.palette));
+	static const char16_t title[] = u"Slot-1";
+	for (int i = 0; i < 6; i++) {
+		tonccpy(b.titles[i], title, sizeof(title));
+	}
+	b.crc[0] = swiCRC16(0xFFFF, b.icon, 0x820);
+	slot1WriteBanner(&b, NDS_BANNER_SIZE_ORIGINAL);
+}
+
+static void slot1TileRefresh(bool force) {
+	const bool present = slot1CardPresent();
+	if (!force && slot1LastPresent == (present ? 1 : 0)) return;
+	slot1LastPresent = present ? 1 : 0;
+
+	if (!present) {
+		slot1WritePlaceholder(false);
+		return;
+	}
+	// Card in: reset the slot and read its banner, like the System Menu does
+	static u8 buf[NDS_BANNER_SIZE_DSi];
+	bool good = false;
+	// The card code uses timer 0, which the music stream runs on
+	snd().stopStream();
+	if (cardInit() == 0 && ndsCardHeader.bannerOffset >= 0x200) {
+		toncset(buf, 0, sizeof(buf));
+		cardRead(ndsCardHeader.bannerOffset, buf, NDS_BANNER_SIZE_DSi, false);
+		const sNDSBannerExt *bn = (const sNDSBannerExt *)buf;
+		if (bn->version == NDS_BANNER_VER_ORIGINAL || bn->version == NDS_BANNER_VER_ZH || bn->version == NDS_BANNER_VER_ZH_KO || bn->version == NDS_BANNER_VER_DSi) {
+			good = (swiCRC16(0xFFFF, buf + 0x20, 0x820) == bn->crc[0]);
+		}
+		if (good) {
+			size_t size = NDS_BANNER_SIZE_ORIGINAL;
+			if (bn->version == NDS_BANNER_VER_ZH) size = NDS_BANNER_SIZE_ZH;
+			else if (bn->version == NDS_BANNER_VER_ZH_KO) size = NDS_BANNER_SIZE_ZH_KO;
+			else if (bn->version == NDS_BANNER_VER_DSi) size = NDS_BANNER_SIZE_DSi;
+			slot1WriteBanner(buf, size);
+		}
+	}
+	snd().beginStream();
+	if (!good) {
+		slot1WritePlaceholder(true); // card in, but no banner could be read
+	}
+}
+
+// A card was put in or taken out at the root: redraw the list so the first icon follows
+static void slot1TileReload() {
+	snd().playSwitch();
+	if (ms().theme != TWLSettings::EThemeSaturn && ms().theme != TWLSettings::EThemeHBL) {
+		fadeType = false; // Fade to white
+		for (int i = 0; i < 25; i++) {
+			bgOperations(true);
+		}
+		whiteScreen = true;
+	}
+	if (!rocketVideo_topVisible || ms().showBoxArt)
+		clearBoxArt(); // Clear box art
+	boxArtLoaded = false;
+	bannerTextShown = false;
+	resumeRotatingCubesVideo();
+	shouldersRendered = false;
+	currentBg = 0;
+	showSTARTborder = false;
+	stopSoundPlayed = false;
+	clearText();
+	updateText(false);
 }
 void switchDevice(void) {
 	if (bothSDandFlashcard()) {
@@ -3754,9 +3870,10 @@ std::string browseForFile(const std::vector<std::string_view> extensionList) {
 				buttonArrowTouched[0] = ((keysHeld() & KEY_TOUCH) && touch.py > 171 && touch.px < 19);
 				buttonArrowTouched[1] = ((keysHeld() & KEY_TOUCH) && touch.py > 171 && touch.px > 236);
 				bgOperations(true);
-				/*if (REG_SCFG_MC != current_SCFG_MC) {
-					break;
-				}*/
+				if (slot1TileAvailable() && recentIsRootCwd() && slot1TileChanged()) {
+					slot1TileReload();
+					return "null"; // the list is built again and picks up the new card
+				}
 			} while (!held);
 
 			buttonArrowTouched[0] = ((keysHeld() & KEY_TOUCH) && touch.py > 171 && touch.px < 19);
@@ -4234,6 +4351,13 @@ std::string browseForFile(const std::vector<std::string_view> extensionList) {
 					ms().saveSettings();
 					settingsChanged = false;
 					return "null";
+				} else if (entry->name == "Slot-1.slot1") {
+					if (slot1CardPresent()) {
+						switchDevice(); // launches the card in Slot-1
+						return "null";
+					}
+					snd().playWrong();
+					continue;
 				} else if (entry->name == "DSi Menu.dsimenu") {
 					exitToSystemMenu();
 					continue;
