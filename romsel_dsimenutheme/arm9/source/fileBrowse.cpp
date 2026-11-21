@@ -4525,7 +4525,11 @@ std::string browseForFile(const std::vector<std::string_view> extensionList) {
 							char recentCwd[PATH_MAX] = {0};
 							getcwd(recentCwd, sizeof(recentCwd));
 							mkdir(sys().isRunFromSD() ? "sd:/_nds/TWiLightMenu/extras" : "fat:/_nds/TWiLightMenu/extras", 0777);
-							recentAdd(recentCwd, entry->name);
+							// DS homebrew (apps) is not a game, so it is not recorded. isHomebrew is only
+							// worked out for DS files (bnrRomType 0); other systems are always games.
+							if (!(bnrRomType[CURPOS] == 0 && isHomebrew[CURPOS] == 1)) {
+								recentAdd(recentCwd, entry->name);
+							}
 						}
 
 						if (ms().theme == TWLSettings::EThemeDSi) {

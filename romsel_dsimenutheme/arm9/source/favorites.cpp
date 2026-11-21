@@ -196,6 +196,12 @@ bool recentIsCwd() {
 	return strcasecmp(favoritesCwd().c_str(), (favoritesRootDir() + "Recently Played/").c_str()) == 0;
 }
 
+// Apps (the Utils folder) are not games: keep them out of the Recently Played list.
+static bool recentIsApp(const std::string &abs) {
+	const std::string utils = favoritesRootDir() + "Utils/";
+	return strncasecmp(abs.c_str(), utils.c_str(), utils.size()) == 0;
+}
+
 void recentAdd(const std::string &cwd, const std::string &name) {
 	if (name.empty()) return;
 	std::string dir = cwd;
@@ -203,12 +209,14 @@ void recentAdd(const std::string &cwd, const std::string &name) {
 	// Never record from inside the Recent folder itself (entries there are absolute paths)
 	if (strcasecmp(dir.c_str(), (favoritesRootDir() + "Recently Played/").c_str()) == 0) return;
 	const std::string abs = (name.find('/') != std::string::npos && name.find(':') != std::string::npos) ? name : dir + name;
+	if (recentIsApp(abs)) return;
 
 	const std::string path = recentIniPath();
 	CIniFile ini(path);
 	std::vector<std::string> list;
 	ini.GetStringVector("RECENT", "LIST", list, DELIM);
 	list.erase(std::remove(list.begin(), list.end(), std::string()), list.end());
+	list.erase(std::remove_if(list.begin(), list.end(), recentIsApp), list.end()); // apps recorded earlier
 	list.erase(std::remove_if(list.begin(), list.end(), [&](const std::string &s) { return strcasecmp(s.c_str(), abs.c_str()) == 0; }), list.end());
 	list.insert(list.begin(), abs);
 	if (list.size() > RECENT_MAX) list.resize(RECENT_MAX);
@@ -245,7 +253,7 @@ std::vector<std::string> recentList() {
 	for (const std::string &abs : out) {
 		const size_t c = abs.find(':');
 		const std::string d = (c == std::string::npos) ? std::string() : abs.substr(0, c + 1);
-		if (strcasecmp(d.c_str(), dev.c_str()) == 0) shown.push_back(abs);
+		if (strcasecmp(d.c_str(), dev.c_str()) == 0 && !recentIsApp(abs)) shown.push_back(abs);
 	}
 	return shown;
 }
