@@ -70,6 +70,10 @@
 #include "donorMap.h"
 #include "saveMap.h"
 #include "ROMList.h"
+#include "perf.h"
+
+// Diagnostic build: write the timing marks to perf.txt right before any game or app is started
+#define runNdsFile(...) (perfMark("runNdsFile called"), perfFlush("launch (post-browse work up to runNdsFile)"), (runNdsFile)(__VA_ARGS__))
 
 extern bool useTwlCfg;
 
@@ -1250,8 +1254,10 @@ static void launchWithConfig(const CustomLauncher *launcher, const std::string &
 }
 
 int dsiMenuTheme(void) {
+	perfMark("dsiMenuTheme start");
 	ms().loadSettings();
 	bs().loadSettings();
+	perfMark("settings loaded");
 	logInit();
 	if (sdFound() && ms().consoleModel >= 2 && (!isDSiMode() || !sys().arm7SCFGLocked())) {
 		CIniFile lumaConfig("sd:/luma/config.ini");
@@ -1265,15 +1271,19 @@ int dsiMenuTheme(void) {
 
 	// Before any texture is loaded, as the NAND key from ARM7 is kept in main RAM
 	findPictochatAndDownloadPlay();
+	perfMark("findPictochatAndDownloadPlay");
 
 	tfn(); //
 	tc().loadConfig();
 	tex().videoSetup(); // allocate texture pointers
+	perfMark("tfn/tc config + videoSetup");
 
 	fontInit();
 	logPrint("\n");
 
+	perfMark("fontInit");
 	langInit();
+	perfMark("langInit");
 
 	if (ms().theme == TWLSettings::EThemeSaturn || ms().theme == TWLSettings::EThemeHBL) {
 		whiteScreen = false;
@@ -1291,8 +1301,11 @@ int dsiMenuTheme(void) {
 
 	srand(time(NULL));
 	
+	perfMark("theme textures loaded (tex().load*Theme)");
 	graphicsInit();
+	perfMark("graphicsInit");
 	iconManagerInit();
+	perfMark("iconManagerInit");
 
 	keysSetRepeat(10, 2);
 
@@ -1319,7 +1332,9 @@ int dsiMenuTheme(void) {
 		logPrint(gbaBiosFound[1] ? "GBA BIOS found on fat\n" : "GBA BIOS not found on fat\n");
 	}
 
-	loadCustomLaunchers();	// User-defined file-type launchers from _nds/TWiLightMenu/extras/config.<ext>.ini
+	perfMark("GBA bios checks");
+	loadCustomLaunchers();
+	perfMark("loadCustomLaunchers");	// User-defined file-type launchers from _nds/TWiLightMenu/extras/config.<ext>.ini
 
 	std::string filename;
 
@@ -1417,7 +1432,9 @@ int dsiMenuTheme(void) {
 
 		logPrint("snd()\n");
 		snd();
+		perfMark("displayNowLoading + snd()");
 		snd().loadStream(true);
+		perfMark("snd().loadStream");
 	}
 
 	while (1) {
@@ -1458,6 +1475,7 @@ int dsiMenuTheme(void) {
 		// Launch the item
 
 		if (applaunch) {
+			perfMark("main: browseForFile returned with a game, post-browse work starts");
 			// Delete previously launched DSiWare copied from flashcard to SD
 			if (access("sd:/_nds/TWiLightMenu/tempDSiWare.dsi", F_OK) == 0) {
 				remove("sd:/_nds/TWiLightMenu/tempDSiWare.dsi");

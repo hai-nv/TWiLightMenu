@@ -29,6 +29,7 @@
 #include "graphics/graphics.h"
 #include "graphics/iconHandler.h"
 #include "iconTitle.h"
+#include "perf.h"
 #include "ndsheaderbanner.h"
 #include "perGameSettings.h"
 #include "favorites.h"
@@ -3552,6 +3553,7 @@ bool setDefaultDirectory(std::string_view directory_path)
 
 std::string browseForFile(const std::vector<std::string_view> extensionList) {
 	displayNowLoading();
+	perfMark("browseForFile: displayNowLoading done");
 	gameOrderIniPath = std::string(sys().isRunFromSD() ? "sd" : "fat") + ":/_nds/TWiLightMenu/extras/gameorder.ini";
 	recentlyPlayedIniPath = std::string(sys().isRunFromSD() ? "sd" : "fat") + ":/_nds/TWiLightMenu/extras/recentlyplayed.ini";
 	timesPlayedIniPath = std::string(sys().isRunFromSD() ? "sd" : "fat") + ":/_nds/TWiLightMenu/extras/timesplayed.ini";
@@ -3564,6 +3566,7 @@ std::string browseForFile(const std::vector<std::string_view> extensionList) {
 	vector<vector<DirEntry>> dirContents(scrn.SIZE);
 
 	getDirectoryContents(dirContents[scrn], extensionList);
+	perfMark("getDirectoryContents (folder listing + sort)");
 	const int parentPosition = parentSelection.restore(dirContents[scrn]);
 	if (parentPosition >= 0) {
 		PAGENUM = parentPosition / 40;
@@ -3586,6 +3589,7 @@ std::string browseForFile(const std::vector<std::string_view> extensionList) {
 	while (1) {
 		updateDirectoryContents(dirContents[scrn]);
 		getFileInfo(scrn, dirContents, true);
+		perfMark("getFileInfo (banner/icon reads of visible page)");
 		if (!vramSafeToUnmap()) swiWaitForVBlank(); // unmaps VRAM E/F/G while it copies
 			reloadIconPalettes();
 		if (ms().theme != TWLSettings::EThemeSaturn && ms().theme != TWLSettings::EThemeHBL) {
@@ -3633,6 +3637,8 @@ std::string browseForFile(const std::vector<std::string_view> extensionList) {
 
 		controlTopBright = false;
 		fadeSpeed = true; // Fast fade speed
+		perfMark("fade-in + music start done (folder shown)");
+		perfFlush("menu: folder/screen ready");
 		bool gameTapped = false;
 		bool dsiBinariesChecked = false;
 		bool hasDsiBinaries = true;
@@ -4248,7 +4254,8 @@ std::string browseForFile(const std::vector<std::string_view> extensionList) {
 					if (favSlash != std::string::npos) {
 						const std::string favDir = entry->name.substr(0, favSlash);
 						const std::string favBase = entry->name.substr(favSlash + 1);
-						const std::string favRootCwd = favoritesCwd();
+						perfMark("launch: A pressed, launch handling starts");
+					const std::string favRootCwd = favoritesCwd();
 						if (chdir(favDir.c_str()) != 0) {
 							snd().playWrong();
 							continue;
@@ -4523,7 +4530,9 @@ std::string browseForFile(const std::vector<std::string_view> extensionList) {
 							char recentCwd[PATH_MAX] = {0};
 							getcwd(recentCwd, sizeof(recentCwd));
 							mkdir(sys().isRunFromSD() ? "sd:/_nds/TWiLightMenu/extras" : "fat:/_nds/TWiLightMenu/extras", 0777);
-							recentAdd(recentCwd, entry->name);
+							perfMark("launch: dialogs/fades before launch done");
+				recentAdd(recentCwd, entry->name);
+				perfMark("launch: recentAdd done (recent.ini)");
 						}
 
 						if (ms().theme == TWLSettings::EThemeDSi) {
@@ -4552,6 +4561,7 @@ std::string browseForFile(const std::vector<std::string_view> extensionList) {
 							}
 							clearText();
 							printLarge(false, 0, (ms().theme == TWLSettings::EThemeSaturn ? 72 : 88), STR_NOW_SAVING, Alignment::center);
+				perfMark("launch: fade-out done, Now saving shown");
 							updateText(false);
 							if (ms().theme == TWLSettings::EThemeHBL) {
 								displayGameIcons = false;
@@ -4568,6 +4578,7 @@ std::string browseForFile(const std::vector<std::string_view> extensionList) {
 							}
 
 							printSmall(false, 0, 20, STR_IF_CRASH_DISABLE_RECENT, Alignment::center);
+				perfMark("launch: 25-frame wait done");
 							updateText(false);
 
 							if (!dsiFeatures()) {
@@ -4595,10 +4606,12 @@ std::string browseForFile(const std::vector<std::string_view> extensionList) {
 							recentlyPlayedIni.SetStringVector("RECENT", path, recentlyPlayed, ':');
 							recentlyPlayedIni.SaveIniFile(recentlyPlayedIniPath);
 							recentlyPlayed.clear();
+				perfMark("launch: recentlyplayed.ini saved");
 
 							CIniFile timesPlayedIni(timesPlayedIniPath);
 							timesPlayedIni.SetInt(path, entry->name, (timesPlayedIni.GetInt(path, entry->name, 0) + 1));
 							timesPlayedIni.SaveIniFile(timesPlayedIniPath);
+				perfMark("launch: timesplayed.ini saved");
 
 							if (ms().sortMethod == TWLSettings::ESortRecent) {
 								// Set cursor pos to the first slot that isn't a directory so it won't be misplaced with recent sort
@@ -4614,7 +4627,8 @@ std::string browseForFile(const std::vector<std::string_view> extensionList) {
 						}
 
 						// Return the chosen file
-						return entry->name;
+						perfMark("launch: browseForFile returns");
+					return entry->name;
 					}
 				}
 			}
