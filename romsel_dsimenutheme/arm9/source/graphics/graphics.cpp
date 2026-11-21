@@ -1342,8 +1342,8 @@ void vBlankHandler() {
 									 (titleboxYpos - 1) + titleboxYposDropDown[i % 5],
 									 GL_FLIP_NONE, &tex().settingsImage()[1]);
 						else
-							drawIcon(iconXpos - titleboxXpos[ms().secondaryDevice],
-										(titleboxYpos + iconYposOnTitleBox - (bnrSlot1Tile[i] ? 3 : 0)) + titleboxYposDropDown[i % 5],
+							drawIcon(iconXpos - titleboxXpos[ms().secondaryDevice] - (bnrSlot1Tile[i] ? 3 : 0),
+										(titleboxYpos + iconYposOnTitleBox - (bnrSlot1Tile[i] ? 6 : 0)) + titleboxYposDropDown[i % 5],
 										i);
 					}
 				} else {
@@ -1466,7 +1466,7 @@ void vBlankHandler() {
 				if (bnrSysSettings[CURPOS])
 					glSprite(96, 83 - titleboxYmovepos, GL_FLIP_NONE, &tex().settingsImage()[1]);
 				else
-					drawIcon(112, (bnrSlot1Tile[CURPOS] ? 93 : 96) - titleboxYmovepos, CURPOS);
+					drawIcon(bnrSlot1Tile[CURPOS] ? 109 : 112, (bnrSlot1Tile[CURPOS] ? 90 : 96) - titleboxYmovepos, CURPOS);
 			}
 			// Draw dots after selecting a game/app
 			dots().drawAuto();
