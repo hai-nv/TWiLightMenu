@@ -1855,6 +1855,7 @@ static void slot1TileReload() {
 	if (!rocketVideo_topVisible || ms().showBoxArt)
 		clearBoxArt(); // Clear box art
 	boxArtLoaded = false;
+	for (int i = 0; i < 40; i++) boxArtSlotLoaded[i] = false; // the Slot-1 cover changes with the card
 	bannerTextShown = false;
 	resumeRotatingCubesVideo();
 	shouldersRendered = false;
@@ -3498,6 +3499,7 @@ static bool previousPage(SwitchState scrn, vector<vector<DirEntry>> dirContents)
 	if (ms().showBoxArt)
 		clearBoxArt(); // Clear box art
 	boxArtLoaded = false;
+	for (int i = 0; i < 40; i++) boxArtSlotLoaded[i] = false; // the Slot-1 cover changes with the card
 	bannerTextShown = false;
 	resumeRotatingCubesVideo();
 	shouldersRendered = false;
@@ -3549,6 +3551,7 @@ static bool nextPage(SwitchState scrn, vector<vector<DirEntry>> dirContents) {
 	if (ms().showBoxArt)
 		clearBoxArt(); // Clear box art
 	boxArtLoaded = false;
+	for (int i = 0; i < 40; i++) boxArtSlotLoaded[i] = false; // the Slot-1 cover changes with the card
 	bannerTextShown = false;
 	resumeRotatingCubesVideo();
 	shouldersRendered = false;
