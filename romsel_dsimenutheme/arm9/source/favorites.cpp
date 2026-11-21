@@ -72,9 +72,19 @@ bool favoritesIsFav(const std::string &absPath) {
 }
 
 bool favoritesIsFavEntry(const std::string &name) {
-	// name is relative to the current folder ("Game.nds", or "A/Game.nds" for
-	// favorites listed in the root folder)
-	return favoritesIsFav(favoritesCwd() + name);
+	// name is relative to the current folder ("Game.nds", or "../A/Game.nds" for
+	// favorites listed in the Favorites folder)
+	std::string cwd = favoritesCwd();
+	std::string rel = name;
+	while (rel.compare(0, 3, "../") == 0) {
+		rel = rel.substr(3);
+		if (cwd.size() > 1) {
+			cwd.pop_back(); // trailing slash
+			const size_t cut = cwd.rfind('/');
+			cwd = (cut == std::string::npos) ? std::string() : cwd.substr(0, cut + 1);
+		}
+	}
+	return favoritesIsFav(cwd + rel);
 }
 
 int favoritesChangeCount() {
@@ -117,20 +127,24 @@ std::string favoritesRootDir() {
 	return root;
 }
 
+bool favoritesIsFavFolderCwd() {
+	return strcasecmp(favoritesCwd().c_str(), (favoritesRootDir() + "Favorites/").c_str()) == 0;
+}
+
 std::vector<std::string> favoritesForCwd() {
 	std::vector<std::string> out;
 	const std::string cwd = favoritesCwd();
-	if (strcasecmp(cwd.c_str(), favoritesRootDir().c_str()) != 0) {
+	const std::string root = favoritesRootDir();
+	// Favorites are listed inside the "Favorites" folder (a real, empty folder in the root)
+	if (strcasecmp(cwd.c_str(), (root + "Favorites/").c_str()) != 0) {
 		return out;
 	}
 	for (const std::string &abs : favoritesLoad()) {
-		if (abs.size() <= cwd.size()) continue;
-		if (strncasecmp(abs.c_str(), cwd.c_str(), cwd.size()) != 0) continue;
-		const std::string rel = abs.substr(cwd.size());
-		// Only games that live in a sub-folder (games directly in root are already listed)
-		if (rel.find('/') == std::string::npos) continue;
+		if (abs.size() <= root.size()) continue;
+		if (strncasecmp(abs.c_str(), root.c_str(), root.size()) != 0) continue;
 		if (!fileExists(abs)) continue; // skip deleted files
-		out.push_back(rel);
+		// Paths relative to the Favorites folder, e.g. "../A/Game.nds"
+		out.push_back("../" + abs.substr(root.size()));
 	}
 	return out;
 }

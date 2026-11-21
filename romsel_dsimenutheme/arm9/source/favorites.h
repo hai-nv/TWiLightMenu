@@ -32,6 +32,8 @@ std::string favoritesRootDir();
 // For the current working directory: return the favorites to inject, as paths
 // relative to the cwd (e.g. "A/Game.nds"). Empty unless cwd is the root.
 std::vector<std::string> favoritesForCwd();
+// Is the current working directory the Favorites folder?
+bool favoritesIsFavFolderCwd();
 
 // ---- Recent: the last games launched from any folder ----
 // A real (empty) "Recent" folder lives in the root folder; its contents are

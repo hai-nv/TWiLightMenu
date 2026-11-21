@@ -314,6 +314,7 @@ void getDirectoryContents(std::vector<DirEntry> &dirContents, const std::vector<
 	// The Recent folder lives in the root folder; make sure it exists
 	if (recentIsRootCwd()) {
 		mkdir((favoritesRootDir() + "Recently Played").c_str(), 0777);
+		mkdir((favoritesRootDir() + "Favorites").c_str(), 0777);
 	}
 
 	DIR *pdir = opendir(".");
@@ -511,31 +512,32 @@ void getDirectoryContents(std::vector<DirEntry> &dirContents, const std::vector<
 			}
 			recalculateBoxesCount();
 		}
-		// Root folder: the Recent folder comes first
+		// Root folder order: Games, Favorites, Recently Played, Utils, DSi Menu, then the rest
 		if (recentIsRootCwd()) {
-			auto recentIt = std::find_if(dirContents.begin(), dirContents.end(), [](const DirEntry &e) {
-				return e.isDirectory && strcasecmp(e.name.c_str(), "Recently Played") == 0;
-			});
-			if (recentIt != dirContents.end() && recentIt != dirContents.begin()) {
-				DirEntry recentEntry = *recentIt;
-				dirContents.erase(recentIt);
-				dirContents.insert(dirContents.begin(), recentEntry);
-			}
-			// DSi Menu shortcut sits in the root, right after the Utils folder
 			ensureSysShortcutIcon("DSi Menu.dsimenu");
-			auto utilsIt = std::find_if(dirContents.begin(), dirContents.end(), [](const DirEntry &e) {
-				return e.isDirectory && strcasecmp(e.name.c_str(), "Utils") == 0;
-			});
-			DirEntry dsiMenuEntry("DSi Menu.dsimenu", false, file_count, false);
-			file_count++;
-			if (utilsIt != dirContents.end()) {
-				dirContents.insert(utilsIt + 1, dsiMenuEntry);
-			} else {
-				dirContents.push_back(dsiMenuEntry);
+			static const char *const rootOrder[] = {"Games", "Favorites", "Recently Played", "Utils"};
+			std::vector<DirEntry> head;
+			for (const char *wanted : rootOrder) {
+				auto it = std::find_if(dirContents.begin(), dirContents.end(), [wanted](const DirEntry &e) {
+					return e.isDirectory && strcasecmp(e.name.c_str(), wanted) == 0;
+				});
+				if (it != dirContents.end()) {
+					head.push_back(*it);
+					dirContents.erase(it);
+				}
 			}
+			head.emplace_back("DSi Menu.dsimenu", false, file_count, false);
+			file_count++;
+			// DSi Menu goes right after Utils (or last in the head if Utils is missing)
+			DirEntry dsiMenuEntry = head.back();
+			head.pop_back();
+			auto utilsIt = std::find_if(head.begin(), head.end(), [](const DirEntry &e) {
+				return strcasecmp(e.name.c_str(), "Utils") == 0;
+			});
+			head.insert(utilsIt == head.end() ? head.end() : utilsIt + 1, dsiMenuEntry);
+			dirContents.insert(dirContents.begin(), head.begin(), head.end());
 			recalculateBoxesCount();
-		}
-		if (backFound) {
+		}		if (backFound) {
 			dirContents.insert(dirContents.begin(), {"..", true, backPos, false});
 		}
 		closedir(pdir);
@@ -4968,7 +4970,7 @@ std::string browseForFile(const std::vector<std::string_view> extensionList) {
 					// and re-read only the slots that shifted, instead of reloading the whole list.
 					const int removeIdx = CURPOS + PAGENUM * 40;
 					const std::string rmName = dirContents[scrn].at(removeIdx).name;
-					if (rmName.find('/') != std::string::npos && !favoritesIsFav(favoritesCwd() + rmName)) {
+					if (rmName.find('/') != std::string::npos && !favoritesIsFavEntry(rmName)) {
 						dirContents[scrn].erase(dirContents[scrn].begin() + removeIdx);
 						file_count--;
 						if (ms().hideEmptyBoxes && spawnedtitleboxes > 0)
