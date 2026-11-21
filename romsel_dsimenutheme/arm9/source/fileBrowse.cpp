@@ -639,6 +639,7 @@ static void moveHeldCursor(bool right, const std::vector<DirEntry> &entries) {
 }
 
 void moveCursor(bool right, const std::vector<DirEntry> dirContents, int maxEntry = 0xFFFF) {
+	perfMark("moveCursor: key pressed");
 	if ((right && CURPOS >= last_used_box) || (!right && CURPOS <= 0)) {
 		if (ms().theme != TWLSettings::EThemeSaturn && !edgeBumpSoundPlayed)
 			snd().playWrong();
@@ -687,6 +688,7 @@ void moveCursor(bool right, const std::vector<DirEntry> dirContents, int maxEntr
 			updateText(false);
 		}
 
+		perfMark("moveCursor: titleUpdate/text done");
 		// Only one entry is newly uncovered by the cursor step; it evicts the
 		// bank of the entry that just fell off the far side. Keep this O(1)
 		// rather than calling refreshGridIcons, which would turn one SD read
@@ -699,6 +701,7 @@ void moveCursor(bool right, const std::vector<DirEntry> dirContents, int maxEntr
 			iconUpdate(dirContents[pos + PAGENUM * 40].isDirectory,
 						dirContents[pos + PAGENUM * 40].name.c_str(),
 						pos);
+		perfNote("moveCursor: icon prefetch (SD read) done for ", dirContents[pos + PAGENUM * 40].name.c_str());
 		}
 
 		bgOperations(false);
@@ -762,6 +765,7 @@ void moveCursor(bool right, const std::vector<DirEntry> dirContents, int maxEntr
 		}
 
 
+		perfMark("moveCursor: animation + first-move delay done");
 		scanKeys();
 		touchRead(&touch);
 	} while ((keysHeld() & (right ? KEY_RIGHT : KEY_LEFT)) || ((keysHeld() & KEY_TOUCH) && touch.py > 171 && (right ? touch.px > 236 : touch.px < 19) && ms().theme == TWLSettings::EThemeDSi));
@@ -772,6 +776,8 @@ void moveCursor(bool right, const std::vector<DirEntry> dirContents, int maxEntr
 
 	if (movingApp == -1 && CURPOS + PAGENUM * 40 < (int)dirContents.size())
 		showSTARTborder = true;
+	perfMark("moveCursor: movement finished");
+	perfFlush("moveCursor");
 	edgeBumpSoundPlayed = false;
 	needToPlayStopSound = true;
 	startBorderZoomOut = true;

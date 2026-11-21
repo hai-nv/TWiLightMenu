@@ -35,6 +35,16 @@ inline void perfMark(const char *label) {
 	}
 }
 
+// Like perfMark, but the label is built from a prefix and a name (copied into a small ring buffer)
+inline void perfNote(const char *prefix, const char *name) {
+	static char ring[16][72];
+	static int pos = 0;
+	char *dst = ring[pos];
+	pos = (pos + 1) & 15;
+	snprintf(dst, sizeof(ring[0]), "%s%s", prefix, name ? name : "?");
+	perfMark(dst);
+}
+
 inline void perfFlush(const char *title) {
 	PerfData &d = perfData();
 	if (d.n == 0) return;
