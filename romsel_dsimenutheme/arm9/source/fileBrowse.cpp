@@ -637,7 +637,9 @@ static void moveHeldCursor(bool right, const std::vector<DirEntry> &entries) {
 	settingsChanged = true;
 }
 
-void moveCursor(bool right, const std::vector<DirEntry> dirContents, int maxEntry = 0xFFFF) {
+// dirContents by reference: it used to be passed by value, which copied the whole directory list
+// (every name string) on each key press, before the slide could even start
+void moveCursor(bool right, const std::vector<DirEntry> &dirContents, int maxEntry = 0xFFFF) {
 	if ((right && CURPOS >= last_used_box) || (!right && CURPOS <= 0)) {
 		if (ms().theme != TWLSettings::EThemeSaturn && !edgeBumpSoundPlayed)
 			snd().playWrong();
