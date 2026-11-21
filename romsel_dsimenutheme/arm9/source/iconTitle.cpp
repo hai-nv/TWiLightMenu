@@ -50,7 +50,45 @@
 #include <nds/arm9/dldi.h>
 #include <stdio.h>
 #include <sys/stat.h>
+#include <dirent.h>
+#include <algorithm>
 #include <vector>
+
+// icons/ can hold hundreds of files and FAT searches a directory linearly, so every access() that
+// misses (the usual case: most games have no custom icon) scans the whole folder. Read the folder
+// once and use it to rule out names that are not there. Only a 32-bit hash of each lowercase name
+// is kept (4 bytes per file, to save RAM), and a hit is still confirmed with access(), so a hash
+// collision cannot show a wrong icon.
+static std::vector<u32> iconDirHashes;
+static bool iconDirRead = false;
+static u32 iconNameHash(const char *s, u32 h = 2166136261u) {
+	for (; *s; s++) {
+		h ^= (u8)tolower((unsigned char)*s);
+		h *= 16777619u;
+	}
+	return h;
+}
+void iconDirCacheInvalidate(void) {
+	iconDirRead = false;
+	std::vector<u32>().swap(iconDirHashes); // give the memory back
+}
+// Could icons/<name><ext> exist? (false means certainly not)
+static bool iconDirMayHave(const char *name, const char *ext) {
+	if (!iconDirRead) {
+		iconDirRead = true;
+		DIR *dir = opendir(sys().isRunFromSD() ? "sd:/_nds/TWiLightMenu/icons/" : "fat:/_nds/TWiLightMenu/icons/");
+		if (dir != nullptr) {
+			while (dirent *ent = readdir(dir)) {
+				iconDirHashes.push_back(iconNameHash(ent->d_name));
+			}
+			closedir(dir);
+			std::sort(iconDirHashes.begin(), iconDirHashes.end());
+			iconDirHashes.shrink_to_fit();
+		}
+	}
+	if (iconDirHashes.empty()) return true; // folder missing or unreadable: ask the card
+	return std::binary_search(iconDirHashes.begin(), iconDirHashes.end(), iconNameHash(ext, iconNameHash(name)));
+}
 
 #define ICON_POS_X 112
 #define ICON_POS_Y 96
@@ -336,10 +374,10 @@ void getGameInfo(bool isDir, const char *name, int num, bool fromArgv) {
 		}
 		if (!customIconFound && ms().showCustomIcons) {
 			snprintf(customIconPath, sizeof(customIconPath), "%s:/_nds/TWiLightMenu/icons/%s.bin", sys().isRunFromSD() ? "sd" : "fat", name);
-			customIconFound = (access(customIconPath, F_OK) == 0);
+			customIconFound = iconDirMayHave(name, ".bin") && (access(customIconPath, F_OK) == 0);
 			if (!customIconFound) {
 				snprintf(customIconPath, sizeof(customIconPath), "%s:/_nds/TWiLightMenu/icons/%s.png", sys().isRunFromSD() ? "sd" : "fat", name);
-				customIconFound = (access(customIconPath, F_OK) == 0);
+				customIconFound = iconDirMayHave(name, ".png") && (access(customIconPath, F_OK) == 0);
 				customIconIsPng = customIconFound;
 			}
 		}
@@ -565,7 +603,7 @@ void getGameInfo(bool isDir, const char *name, int num, bool fromArgv) {
 			clearTitle(num);
 			if (customIcon[num] != 2)
 				clearBannerSequence(num); // banner sequence
-			fclose(fp);
+			favoritesForgetMissing(name); // a deleted favorite leaves the Favorites folder
 			return;
 		}
 

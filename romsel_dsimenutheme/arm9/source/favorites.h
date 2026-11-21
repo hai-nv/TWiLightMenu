@@ -9,7 +9,7 @@
 // favorites.ini). Entries are stored as absolute paths.
 
 // All stored favorites (absolute paths, e.g. "sd:/roms/nds/A/Game.nds")
-std::vector<std::string> favoritesLoad();
+const std::vector<std::string> &favoritesLoad();
 
 bool favoritesIsFav(const std::string &absPath);
 // Is the entry (name relative to the current folder) a favorite?
@@ -17,6 +17,8 @@ bool favoritesIsFavEntry(const std::string &name);
 // Increases every time the favorites list changes
 int favoritesChangeCount();
 void favoritesSet(const std::string &absPath, bool fav);
+// Called when an entry of the Favorites folder could not be opened: forget it
+void favoritesForgetMissing(const std::string &name);
 
 // One-shot "return here after the game exits" folder (used when a game is
 // launched from a favorite entry in the root folder).

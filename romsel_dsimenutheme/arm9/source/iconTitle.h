@@ -24,6 +24,8 @@
 #include <string_view>
 
 void getGameInfo(bool isDir, const char* name, int num, bool fromArgv = false);
+// Forget the cached list of files in icons/ (call after writing a file there)
+void iconDirCacheInvalidate(void);
 void iconUpdate(bool isDir, const char* name, int num);
 void titleUpdate(bool isDir, std::string_view name, int num);
 void drawIcon(int Xpos, int Ypos, int num);

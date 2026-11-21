@@ -312,7 +312,9 @@ void getDirectoryContents(std::vector<DirEntry> &dirContents, const std::vector<
 	}
 
 	// The Recent folder lives in the root folder; make sure it exists
-	if (recentIsRootCwd()) {
+	static bool specialFoldersMade = false; // once per run is enough
+	if (!specialFoldersMade && recentIsRootCwd()) {
+		specialFoldersMade = true;
 		mkdir((favoritesRootDir() + "Recently Played").c_str(), 0777);
 		mkdir((favoritesRootDir() + "Favorites").c_str(), 0777);
 	}
@@ -467,7 +469,11 @@ void getDirectoryContents(std::vector<DirEntry> &dirContents, const std::vector<
 					else if (lhs.isDirectory && !rhs.isDirectory)
 						return true;
 
-					int extCmp = strcasecmp(lhs.name.substr(lhs.name.find_last_of('.') + 1).c_str(), rhs.name.substr(rhs.name.find_last_of('.') + 1).c_str());
+					// extension compare without building two temporary strings per comparison
+					// (no '.' in the name means the whole name, like find_last_of + 1 did)
+					const char *lhsDot = strrchr(lhs.name.c_str(), '.');
+					const char *rhsDot = strrchr(rhs.name.c_str(), '.');
+					int extCmp = strcasecmp(lhsDot ? lhsDot + 1 : lhs.name.c_str(), rhsDot ? rhsDot + 1 : rhs.name.c_str());
 					if (extCmp == 0)
 						return strcasecmp(lhs.name.c_str(), rhs.name.c_str()) < 0;
 					else
@@ -1671,6 +1677,11 @@ bool getNandSystemAppPathByName(const char *name, char *out, size_t outSize) {
 // Dump the real banner of a DSi system title (from NAND) to icons/<name>.bin once, so the
 // Utils shortcut shows the genuine system icon through the normal custom-banner path.
 static void ensureSysShortcutIcon(const char *name) {
+	// Checking costs SD lookups (and may open a NAND file), and the result cannot change
+	// while the menu runs, so do it once per shortcut
+	static std::vector<std::string> done;
+	if (std::find(done.begin(), done.end(), name) != done.end()) return;
+	done.push_back(name);
 	char binPath[256];
 	snprintf(binPath, sizeof(binPath), "%s:/_nds/TWiLightMenu/icons/%s.bin", sys().isRunFromSD() ? "sd" : "fat", name);
 	if (access(binPath, F_OK) == 0) return;
@@ -1695,6 +1706,7 @@ static void ensureSysShortcutIcon(const char *name) {
 	if (!o) return;
 	fwrite(buf, 1, r, o);
 	fclose(o);
+	iconDirCacheInvalidate(); // icons/ has a new file the cached listing does not know
 }
 // Launch a DSi system title (System Settings, Camera, ...) from the system NAND through Unlaunch.
 static bool launchNandSystemTitle(const char *typeDir, const char *idPrefix) {

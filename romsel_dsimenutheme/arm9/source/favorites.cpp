@@ -53,22 +53,22 @@ static std::vector<std::string> g_favCache;
 static bool g_favCacheLoaded = false;
 static int g_favVersion = 0;
 
-std::vector<std::string> favoritesLoad() {
+const std::vector<std::string> &favoritesLoad() {
 	if (!g_favCacheLoaded) {
 		CIniFile ini(iniPath());
 		std::vector<std::string> list;
 		ini.GetStringVector("FAVORITES", "LIST", list, DELIM);
 		// drop empty entries
 		list.erase(std::remove(list.begin(), list.end(), std::string()), list.end());
-		g_favCache = list;
+		g_favCache = std::move(list);
 		g_favCacheLoaded = true;
 	}
-	return g_favCache;
+	return g_favCache; // by reference: this is called for every icon that gets drawn
 }
 
 bool favoritesIsFav(const std::string &absPath) {
-	favoritesLoad();
-	return std::find(g_favCache.begin(), g_favCache.end(), absPath) != g_favCache.end();
+	const std::vector<std::string> &list = favoritesLoad();
+	return std::find(list.begin(), list.end(), absPath) != list.end();
 }
 
 bool favoritesIsFavEntry(const std::string &name) {
@@ -92,11 +92,9 @@ int favoritesChangeCount() {
 }
 
 void favoritesSet(const std::string &absPath, bool fav) {
-	const std::string path = iniPath();
-	CIniFile ini(path);
-	std::vector<std::string> list;
-	ini.GetStringVector("FAVORITES", "LIST", list, DELIM);
-	list.erase(std::remove(list.begin(), list.end(), std::string()), list.end());
+	// The cache is always up to date (only this function changes the list), so decide from
+	// it and touch the SD card only when something really changes
+	std::vector<std::string> list = favoritesLoad();
 
 	auto it = std::find(list.begin(), list.end(), absPath);
 	if (fav && it == list.end()) {
@@ -106,16 +104,48 @@ void favoritesSet(const std::string &absPath, bool fav) {
 	} else {
 		return; // nothing to change
 	}
+	const std::string path = iniPath();
+	CIniFile ini(path); // loaded again so the other keys (RETURN_DIR, ROOT) are kept
 	ini.SetStringVector("FAVORITES", "LIST", list, DELIM);
 	ini.SaveIniFile(path);
-	g_favCache = list;
+	g_favCache = std::move(list);
 	g_favCacheLoaded = true;
 	g_favVersion++;
 }
 
+// Name of an entry listed in the Favorites folder -> absolute path
+static std::string favoritesAbsFromEntry(const std::string &name) {
+	std::string cwd = favoritesCwd();
+	std::string rel = name;
+	while (rel.compare(0, 3, "../") == 0) {
+		rel = rel.substr(3);
+		if (cwd.size() > 1) {
+			cwd.pop_back();
+			const size_t cut = cwd.rfind('/');
+			cwd = (cut == std::string::npos) ? std::string() : cwd.substr(0, cut + 1);
+		}
+	}
+	return cwd + rel;
+}
+
+void favoritesForgetMissing(const std::string &name) {
+	if (name.compare(0, 3, "../") != 0 || !favoritesIsFavFolderCwd()) return;
+	const std::string abs = favoritesAbsFromEntry(name);
+	if (fileExists(abs)) return; // the open failed for another reason: keep the favorite
+	favoritesSet(abs, false);
+}
+
 std::string favoritesRootDir() {
-	CIniFile ini(iniPath());
-	std::string root = ini.GetString("FAVORITES", "ROOT", "");
+	// ROOT= never changes while the menu runs, so read the ini only once (this is called
+	// several times for every folder that gets opened)
+	static std::string iniRoot;
+	static bool iniRootRead = false;
+	if (!iniRootRead) {
+		CIniFile ini(iniPath());
+		iniRoot = ini.GetString("FAVORITES", "ROOT", "");
+		iniRootRead = true;
+	}
+	std::string root = iniRoot;
 	if (root.empty()) {
 		// Default: the very top of the current device, e.g. "sd:/" or "fat:/"
 		const std::string cwd = favoritesCwd();
@@ -142,7 +172,9 @@ std::vector<std::string> favoritesForCwd() {
 	for (const std::string &abs : favoritesLoad()) {
 		if (abs.size() <= root.size()) continue;
 		if (strncasecmp(abs.c_str(), root.c_str(), root.size()) != 0) continue;
-		if (!fileExists(abs)) continue; // skip deleted files
+		// No existence check here: that was one slow SD lookup per favorite, and the banner
+		// loader opens every file anyway. A file that is gone is dropped from the list there
+		// (favoritesForgetMissing), so it disappears the next time the folder is opened.
 		// Paths relative to the Favorites folder, e.g. "../A/Game.nds"
 		out.push_back("../" + abs.substr(root.size()));
 	}
