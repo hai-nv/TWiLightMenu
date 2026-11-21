@@ -901,10 +901,8 @@ void perGameSettings (std::string filename, bool* dsiBinariesFound, bool* dsiBin
 		}
 	}
 
-	perGameSettings_favPath = favoritesCwd() + filename;	// Also used to remove the game from the recent list
-
-	// Favorite option (last row of the per-game settings list; not in the Recently Played folder)
-	if (showPerGameSettings && perGameOps < 22 && !perGameSettingsFromRecent) {
+	// Favorite option (last row of the per-game settings list)
+	if (showPerGameSettings && perGameOps < 22) {
 		perGameSettings_favPath = favoritesCwd() + filename;
 		perGameSettings_favorite = favoritesIsFav(perGameSettings_favPath);
 		perGameOps++;
