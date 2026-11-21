@@ -26,7 +26,7 @@ std::string getString(CIniFile &ini, const std::string &item, const std::string 
 	}
 
 	// Convert "\n" to actual newlines
-	for (uint i = 0; i < out.length() - 1; i++) {
+	for (uint i = 0; i + 1 < out.length(); i++) {
 		if (out[i] == '\\') {
 			switch(out[i + 1]) {
 				case 'n':
@@ -115,6 +115,7 @@ void langInit(void)
 	snprintf(languageIniPath, sizeof(languageIniPath), "nitro:/languages/%s/language.ini", ms().getGuiLanguageString().c_str());
 
 	CIniFile languageini(languageIniPath);
+	languageini.SetReadOnly(true); // only read: no defaults written back, cached section lookup
 
 #define STRING(what,def) STR_##what = getString(languageini, ""#what, def);
 #include "language.inl"

@@ -270,6 +270,7 @@ static void loadOneConfig(const std::string &extrasDir, const std::string &fileN
 	}
 
 	CIniFile ini(extrasDir + "/" + fileName);
+	ini.SetReadOnly(true); // only read: a missing key no longer rewrites the in-memory file
 
 	CustomLauncher launcher;
 	launcher.extension = ext;

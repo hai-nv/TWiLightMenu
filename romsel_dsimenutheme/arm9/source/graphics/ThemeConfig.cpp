@@ -69,6 +69,7 @@ void ThemeConfig::loadConfig() {
 	int macroW = 0;
 
 	CIniFile themeConfig(TFN_THEME_SETTINGS);
+	themeConfig.SetReadOnly(true); // only read: a missing key no longer rewrites the in-memory file
 	_startBorderRenderY = getInt(themeConfig, "StartBorderRenderY", _startBorderRenderY);
 	_startBorderSpriteW = getInt(themeConfig, "StartBorderSpriteW", _startBorderSpriteW);
 	_startBorderSpriteH = getInt(themeConfig, "StartBorderSpriteH", _startBorderSpriteH);

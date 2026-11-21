@@ -39,6 +39,11 @@ class CIniFile
     bool SaveIniFile(const std::string& FileName);
     bool SaveIniFileModified(const std::string& FileName);
 
+    // Read-only mode: lookups with a default value no longer write that default into
+    // the in-memory copy (cheaper: no extra scans or inserts), and section positions are cached.
+    // Use it for files that are only read and never saved.
+    void SetReadOnly(bool readOnly) { m_bReadOnly = readOnly; }
+
     std::string GetString(const std::string& Section,const std::string& Item,const std::string& DefaultValue);
     void SetString(const std::string& Section,const std::string& Item,const std::string& Value);
     int GetInt(const std::string& Section,const std::string& Item,int DefaultValue);

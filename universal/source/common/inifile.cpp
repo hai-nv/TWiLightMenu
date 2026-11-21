@@ -26,7 +26,8 @@
 
 bool gbar2Fix = false;
 
-static bool freadLine(FILE *f, std::string &str)
+// No longer used by LoadIniFile (it reads in chunks now); kept for reference.
+__attribute__((unused)) static bool freadLine(FILE *f, std::string &str)
 {
 	str.clear();
 __read:
@@ -58,11 +59,13 @@ static void trimString(std::string &str)
 {
 	size_t first = str.find_first_not_of(" \t"), last;
 	if (first == str.npos) {
-		str = "";
+		str.clear();
 	} else {
 		last = str.find_last_not_of(" \t");
-		if (first > 0 || (last + 1) < str.length())
-			str = str.substr(first, last - first + 1);
+		if ((last + 1) < str.length())
+			str.erase(last + 1);
+		if (first > 0)
+			str.erase(0, first);
 	}
 }
 
@@ -91,6 +94,8 @@ CIniFile::~CIniFile()
 
 void CIniFile::SetString(const std::string &Section, const std::string &Item, const std::string &Value)
 {
+	if (m_bReadOnly)
+		return;
 	if (GetFileString(Section, Item) != Value) {
 		SetFileString(Section, Item, Value);
 		m_bModified = true;
@@ -99,6 +104,8 @@ void CIniFile::SetString(const std::string &Section, const std::string &Item, co
 
 void CIniFile::SetInt(const std::string &Section, const std::string &Item, int Value)
 {
+	if (m_bReadOnly)
+		return;
 	std::string strtemp = formatString("%d", Value);
 
 	if (GetFileString(Section, Item) != strtemp) {
@@ -188,14 +195,31 @@ bool CIniFile::LoadIniFile(const std::string &FileName)
 	else
 		fseek(f, 0, SEEK_SET);
 
-	std::string strline("");
+	std::string strline;
 	m_FileContainer.clear();
+	m_Cache.clear();
 
-	while (freadLine(f, strline)) {
-		trimString(strline);
-		if (strline != "" && ';' != strline[0] && '/' != strline[0] && '!' != strline[0])
-			m_FileContainer.push_back(strline);
+	// Same result as reading line by line: lines are split at \n or \r,
+	// trimmed, and empty / comment lines are skipped. Read in chunks, not byte by byte.
+	char buf[512];
+	size_t got;
+	while ((got = fread(buf, 1, sizeof(buf), f)) > 0) {
+		size_t start = 0;
+		for (size_t k = 0; k < got; k++) {
+			if (buf[k] == '\n' || buf[k] == '\r') {
+				strline.append(buf + start, k - start);
+				start = k + 1;
+				trimString(strline);
+				if (!strline.empty() && ';' != strline[0] && '/' != strline[0] && '!' != strline[0])
+					m_FileContainer.push_back(strline);
+				strline.clear();
+			}
+		}
+		strline.append(buf + start, got - start);
 	}
+	trimString(strline);
+	if (!strline.empty() && ';' != strline[0] && '/' != strline[0] && '!' != strline[0])
+		m_FileContainer.push_back(strline);
 
 	fclose(f);
 
@@ -247,13 +271,8 @@ bool CIniFile::SaveIniFile(const std::string &FileName)
 
 std::string CIniFile::GetFileString(const std::string &Section, const std::string &Item)
 {
-	std::string strline;
-	std::string strSection;
-	std::string strItem;
-	std::string strValue;
-
 	size_t ii = 0;
-	size_t iFileLines = m_FileContainer.size();
+	const size_t iFileLines = m_FileContainer.size();
 
 	if (m_bReadOnly) {
 		SectionCache::iterator it = m_Cache.find(Section);
@@ -263,55 +282,48 @@ std::string CIniFile::GetFileString(const std::string &Section, const std::strin
 
 	m_bLastResult = false;
 
-	if (iFileLines >= 0) {
-		while (ii < iFileLines) {
-			strline = m_FileContainer[ii++];
+	// Lines are read by reference: copying every line made each lookup very slow.
+	while (ii < iFileLines) {
+		const std::string &strline = m_FileContainer[ii++];
 
-			size_t rBracketPos = 0;
-			if ('[' == strline[0])
-				rBracketPos = strline.find(']');
-			if (rBracketPos > 0 && rBracketPos != std::string::npos) {
-				strSection = strline.substr(1, rBracketPos - 1);
-				if (m_bReadOnly)
-					m_Cache.insert(std::make_pair(strSection, ii - 1));
-				if (strSection == Section) {
-					while (ii < iFileLines) {
-						strline = m_FileContainer[ii++];
-						size_t equalsignPos = strline.find('=');
-						if (equalsignPos != strline.npos) {
-							size_t last = equalsignPos ? strline.find_last_not_of(" \t", equalsignPos - 1) : strline.npos;
-							if (last == strline.npos)
-								strItem = "";
-							else
-								strItem = strline.substr(0, last + 1);
+		size_t rBracketPos = 0;
+		if ('[' == strline[0])
+			rBracketPos = strline.find(']');
+		if (rBracketPos > 0 && rBracketPos != std::string::npos) {
+			if (m_bReadOnly)
+				m_Cache.insert(std::make_pair(strline.substr(1, rBracketPos - 1), ii - 1));
+			if (strline.compare(1, rBracketPos - 1, Section) == 0) {
+				while (ii < iFileLines) {
+					const std::string &itemLine = m_FileContainer[ii++];
+					size_t equalsignPos = itemLine.find('=');
+					if (equalsignPos != itemLine.npos) {
+						size_t last = equalsignPos ? itemLine.find_last_not_of(" \t", equalsignPos - 1) : itemLine.npos;
+						bool same;
+						if (last == itemLine.npos)
+							same = Item.empty();
+						else
+							same = (last + 1 == Item.size()) && (itemLine.compare(0, last + 1, Item) == 0);
 
-							if (strItem == Item) {
-								size_t first = strline.find_first_not_of(" \t", equalsignPos + 1);
-								if (first == strline.npos)
-									strValue = "";
-								else
-									strValue = strline.substr(first);
-								m_bLastResult = true;
-								return strValue;
-							}
-						} else if ('[' == strline[0]) {
-							break;
+						if (same) {
+							size_t first = itemLine.find_first_not_of(" \t", equalsignPos + 1);
+							m_bLastResult = true;
+							if (first == itemLine.npos)
+								return std::string();
+							return itemLine.substr(first);
 						}
+					} else if ('[' == itemLine[0]) {
+						break;
 					}
-					break;
 				}
+				break;
 			}
 		}
 	}
-	return std::string("");
+	return std::string();
 }
 
 void CIniFile::SetFileString(const std::string &Section, const std::string &Item, const std::string &Value)
 {
-	std::string strline;
-	std::string strSection;
-	std::string strItem;
-
 	if (m_bReadOnly)
 		return;
 
@@ -319,29 +331,29 @@ void CIniFile::SetFileString(const std::string &Section, const std::string &Item
 	size_t iFileLines = m_FileContainer.size();
 
 	while (ii < iFileLines) {
-		strline = m_FileContainer[ii++];
+		const std::string &strline = m_FileContainer[ii++];
 
 		size_t rBracketPos = 0;
 		if ('[' == strline[0])
 			rBracketPos = strline.find(']');
 		if (rBracketPos > 0 && rBracketPos != std::string::npos) {
-			strSection = strline.substr(1, rBracketPos - 1);
-			if (strSection == Section) {
+			if (strline.compare(1, rBracketPos - 1, Section) == 0) {
 				while (ii < iFileLines) {
-					strline = m_FileContainer[ii++];
-					size_t equalsignPos = strline.find('=');
-					if (equalsignPos != strline.npos) {
-						size_t last = equalsignPos ? strline.find_last_not_of(" \t", equalsignPos - 1) : strline.npos;
-						if (last == strline.npos)
-							strItem = "";
+					const std::string &itemLine = m_FileContainer[ii++];
+					size_t equalsignPos = itemLine.find('=');
+					if (equalsignPos != itemLine.npos) {
+						size_t last = equalsignPos ? itemLine.find_last_not_of(" \t", equalsignPos - 1) : itemLine.npos;
+						bool same;
+						if (last == itemLine.npos)
+							same = Item.empty();
 						else
-							strItem = strline.substr(0, last + 1);
+							same = (last + 1 == Item.size()) && (itemLine.compare(0, last + 1, Item) == 0);
 
-						if (Item == strItem) {
+						if (same) {
 							ReplaceLine(ii - 1, Item + (gbar2Fix ? "=" : " = ") + Value);
 							return;
 						}
-					} else if ('[' == strline[0]) {
+					} else if ('[' == itemLine[0]) {
 						InsertLine(ii - 1, Item + (gbar2Fix ? "=" : " = ") + Value);
 						return;
 					}
