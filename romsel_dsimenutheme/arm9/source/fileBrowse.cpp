@@ -548,10 +548,13 @@ void getDirectoryContents(std::vector<DirEntry> &dirContents, const std::vector<
 				return strcasecmp(e.name.c_str(), "Utils") == 0;
 			});
 			head.insert(utilsIt == head.end() ? head.end() : utilsIt + 1, dsiMenuEntry);
-			// The Slot-1 card is the first icon, like in the System Menu: its game when a card is in, an empty slot when not
+			// The Slot-1 card sits right after Games (before Favorites): its game when a card is in, an empty slot when not
 			if (slot1TileAvailable()) {
 				slot1TileRefresh(false);
-				head.insert(head.begin(), DirEntry("Slot-1.slot1", false, file_count, false));
+				auto gamesIt = std::find_if(head.begin(), head.end(), [](const DirEntry &e) {
+					return e.isDirectory && strcasecmp(e.name.c_str(), "Games") == 0;
+				});
+				head.insert(gamesIt == head.end() ? head.begin() : gamesIt + 1, DirEntry("Slot-1.slot1", false, file_count, false));
 				file_count++;
 			}
 			dirContents.insert(dirContents.begin(), head.begin(), head.end());
@@ -877,10 +880,17 @@ void updateBoxArt(void) {
 				}
 			}
 			if (!slot1Tid[0] || !boxArtFileExists(boxArtPath)) {
-				sprintf(boxArtPath, "%s:/_nds/TWiLightMenu/boxart/Slot-1 Card.png", dev);
+				// generic cover: per theme (<theme folder>/boxart/Slot-1 Card.png) first, then boxart/
+				snprintf(boxArtPath, sizeof(boxArtPath), "%s/boxart/Slot-1 Card.png", tfn().uiDirectory().c_str());
+				if (access(boxArtPath, F_OK) != 0) {
+					sprintf(boxArtPath, "%s:/_nds/TWiLightMenu/boxart/Slot-1 Card.png", dev);
+				}
 			}
 		} else {
-			sprintf(boxArtPath, "%s:/_nds/TWiLightMenu/boxart/Slot-1 Empty.png", dev);
+			snprintf(boxArtPath, sizeof(boxArtPath), "%s/boxart/Slot-1 Empty.png", tfn().uiDirectory().c_str());
+			if (access(boxArtPath, F_OK) != 0) {
+				sprintf(boxArtPath, "%s:/_nds/TWiLightMenu/boxart/Slot-1 Empty.png", dev);
+			}
 		}
 	}
 	const bool boxArtInMem = (dsiFeatures() && ms().showBoxArt == 2);
@@ -1787,8 +1797,20 @@ static void slot1WritePlaceholder(bool dark) {
 	static sNDSBannerExt b; // big, keep it off the stack
 	toncset(&b, 0, sizeof(b));
 	b.version = NDS_BANNER_VER_ORIGINAL;
-	tonccpy(b.icon, dark ? slot1Icon_dark_tiles : slot1Icon_empty_tiles, sizeof(b.icon));
-	tonccpy(b.palette, dark ? slot1Icon_dark_pal : slot1Icon_empty_pal, sizeof(b.palette));
+	// The empty-slot icon follows the DSi Menu theme colour (theme folder name); blue if unknown
+	int themeIdx = 2;
+	{
+		const std::string &ui = tfn().uiDirectory();
+		size_t end = ui.size();
+		while (end > 0 && ui[end - 1] == '/') end--;
+		const size_t start = ui.rfind('/', end ? end - 1 : 0);
+		const std::string leaf = ui.substr(start == std::string::npos ? 0 : start + 1, end - (start == std::string::npos ? 0 : start + 1));
+		for (int i = 0; i < 8; i++) {
+			if (strcasecmp(leaf.c_str(), slot1ThemeNames[i]) == 0) { themeIdx = i; break; }
+		}
+	}
+	tonccpy(b.icon, dark ? slot1Icon_dark_tiles : slot1Icon_empty_tiles[themeIdx], sizeof(b.icon));
+	tonccpy(b.palette, dark ? slot1Icon_dark_pal : slot1Icon_empty_pal[themeIdx], sizeof(b.palette));
 	static const char16_t title[] = u"Slot-1";
 	for (int i = 0; i < 6; i++) {
 		tonccpy(b.titles[i], title, sizeof(title));
