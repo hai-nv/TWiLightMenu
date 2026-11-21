@@ -1333,7 +1333,7 @@ void vBlankHandler() {
 										 tex().boxfullImage());
 							} else {
 								glSprite(spawnedboxXpos - titleboxXpos[ms().secondaryDevice],
-										 titleboxYpos + titleboxYposDropDown[i % 5],
+										 (titleboxYpos - (bnrSlot1Tile[i] ? 3 : 0)) + titleboxYposDropDown[i % 5],
 										 GL_FLIP_NONE, &tex().boxfullImage()[0]);
 							}
 						}
@@ -1461,7 +1461,7 @@ void vBlankHandler() {
 					drawIcon(112, 96 - titleboxYmovepos, CURPOS);
 			} else {
 				if (!bnrSysSettings[CURPOS]) {
-					glSprite(96, 84 - titleboxYmovepos, GL_FLIP_NONE, tex().boxfullImage());
+					glSprite(96, (bnrSlot1Tile[CURPOS] ? 87 : 84) - titleboxYmovepos, GL_FLIP_NONE, tex().boxfullImage());
 				}
 				if (bnrSysSettings[CURPOS])
 					glSprite(96, 83 - titleboxYmovepos, GL_FLIP_NONE, &tex().settingsImage()[1]);

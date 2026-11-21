@@ -3256,6 +3256,7 @@ void getFileInfo(SwitchState scrn, vector<vector<DirEntry>> dirContents, bool re
 			isDirectory[i] = dirContents[scrn][i + PAGENUM * 40].isDirectory;
 			const std::string &std_romsel_filename = dirContents[scrn][i + PAGENUM * 40].name;
 			getGameInfo(isDirectory[i], std_romsel_filename.c_str(), i);
+			bnrSlot1Tile[i] = (!isDirectory[i] && std_romsel_filename == "Slot-1.slot1");
 			boxArtSlotLoaded[i] = false; // folders and files alike, or a folder keeps the cover cached for that slot in the previous folder
 
 			if (isDirectory[i]) {

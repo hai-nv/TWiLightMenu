@@ -296,6 +296,7 @@ extern bool isTwlm[41];
 extern bool isUnlaunch[41];
 extern bool isDirectory[40];
 extern bool bnrSysSettings[41];
+extern bool bnrSlot1Tile[41];
 extern int bnrRomType[41];
 extern bool bnriconisDSi[41];
 extern int bnrWirelessIcon[41];	// 0 = None, 1 = Local, 2 = WiFi

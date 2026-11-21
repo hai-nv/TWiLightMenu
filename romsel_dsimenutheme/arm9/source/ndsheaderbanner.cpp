@@ -581,6 +581,7 @@ bool isTwlm[41] = {false};
 bool isUnlaunch[41] = {false};
 bool isDirectory[40] = {false};
 bool bnrSysSettings[41] = {false};
+bool bnrSlot1Tile[41] = {false}; // the virtual Slot-1 entry: drawn on the same row height as the folders
 int bnrRomType[41] = {0};
 bool bnriconisDSi[41] = {false};
 int bnrWirelessIcon[41] = {0}; // 0 = None, 1 = Local, 2 = WiFi
