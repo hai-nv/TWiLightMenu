@@ -1734,22 +1734,32 @@ static bool confirmPowerOff(void) {
 		displayGameIcons = false;
 		fadeType = true;
 	} else {
-		dbox_showIcon = false;
+		dbox_showIcon = true;
 		showdialogbox = true;
 	}
 	clearText();
 	updateText(false);
 	if (saturn) {
 		while (!screenFadedIn()) { bgOperations(true); }
+		dbox_showIcon = true;
 	} else {
 		while (!dboxStopped) { bgOperations(true); }
 	}
-	printSmall(false, 0, 100, "Power off the console?", Alignment::center, FontPalette::dialog);
-	printSmall(false, 0, 160, "A: Yes    B: No", Alignment::center, FontPalette::dialog);
+	// Same layout as the hide/delete (X) box: name top left, question in the middle
+	printSmall(false, 16, 66, "Power Off", Alignment::left, FontPalette::dialog);
+	printSmall(false, 0, 112, "Power off the console?", Alignment::center, FontPalette::dialog);
 	updateText(false);
-	for (int i = 0; i < 20; i++) {
+	for (int i = 0; i < 90; i++) {
 		bgOperations(true);
 	}
+	// Button glyphs from the font (U+E000 = A), like the \A / \B of the language strings
+	printSmall(false, 240, 160, std::string("\xEE\x80\x80 Yes  ") + STR_B_NO, Alignment::right, FontPalette::dialog);
+	updateText(false);
+	// The A that opened this entry must not count as the answer: wait until it is released
+	do {
+		scanKeys();
+		bgOperations(true);
+	} while (keysHeld() & (KEY_A | KEY_B));
 	bool yes = false;
 	while (true) {
 		scanKeys();
