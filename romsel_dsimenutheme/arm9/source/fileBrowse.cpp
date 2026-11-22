@@ -540,7 +540,10 @@ void getDirectoryContents(std::vector<DirEntry> &dirContents, const std::vector<
 			auto utilsIt = std::find_if(head.begin(), head.end(), [](const DirEntry &e) {
 				return strcasecmp(e.name.c_str(), "Utils") == 0;
 			});
-			head.insert(utilsIt == head.end() ? head.end() : utilsIt + 1, dsiMenuEntry);
+			auto dsiMenuIt = head.insert(utilsIt == head.end() ? head.end() : utilsIt + 1, dsiMenuEntry);
+			// Power Off goes right after DSi Menu (icon: icons/Power Off.dsisys.png)
+			head.insert(dsiMenuIt + 1, DirEntry("Power Off.dsisys", false, file_count, false));
+			file_count++;
 			dirContents.insert(dirContents.begin(), head.begin(), head.end());
 			recalculateBoxesCount();
 		}		if (backFound) {
@@ -1718,6 +1721,94 @@ static bool launchNandSystemTitle(const char *typeDir, const char *idPrefix) {
 	exitToSystemMenu();
 	return true;
 }
+// Yes/No box for the virtual "Power Off" entry. Returns true when the user pressed A.
+static bool confirmPowerOff(void) {
+	const bool saturn = (ms().theme == TWLSettings::EThemeSaturn);
+	if (saturn) {
+		snd().playStartup();
+		fadeType = false; // Fade to black
+		for (int i = 0; i < 25; i++) {
+			bgOperations(true);
+		}
+		currentBg = 1;
+		displayGameIcons = false;
+		fadeType = true;
+	} else {
+		dbox_showIcon = false;
+		showdialogbox = true;
+	}
+	clearText();
+	updateText(false);
+	if (saturn) {
+		while (!screenFadedIn()) { bgOperations(true); }
+	} else {
+		while (!dboxStopped) { bgOperations(true); }
+	}
+	printSmall(false, 0, 100, "Power off the console?", Alignment::center, FontPalette::dialog);
+	printSmall(false, 0, 160, "A: Yes    B: No", Alignment::center, FontPalette::dialog);
+	updateText(false);
+	for (int i = 0; i < 20; i++) {
+		bgOperations(true);
+	}
+	bool yes = false;
+	while (true) {
+		scanKeys();
+		const int pressed = keysDown();
+		bgOperations(true);
+		if (pressed & KEY_A) {
+			yes = true;
+			break;
+		}
+		if (pressed & KEY_B) {
+			snd().playBack();
+			break;
+		}
+	}
+	if (yes) {
+		return true;
+	}
+	showdialogbox = false;
+	if (saturn) {
+		fadeType = false; // Fade to black
+		for (int i = 0; i < 25; i++) {
+			bgOperations(true);
+		}
+		clearText();
+		updateText(false);
+		currentBg = 0;
+		displayGameIcons = true;
+		fadeType = true;
+		snd().playStartup();
+	} else {
+		clearText();
+		updateText(false);
+		for (int i = 0; i < 15; i++) { bgOperations(true); }
+	}
+	dbox_showIcon = false;
+	bannerTextShown = false;
+	return false;
+}
+
+// Fade out, save settings and ask the ARM7 to cut the power.
+static void powerOffConsole(void) {
+	snd().playLaunch();
+	controlTopBright = true;
+	fadeType = false; // Fade to white
+	snd().fadeOutStream();
+	for (int i = 0; i < 60; i++) {
+		bgOperations(true);
+	}
+	snd().stopStream();
+	if (settingsChanged) {
+		ms().saveSettings();
+		settingsChanged = false;
+	}
+	fifoSendValue32(FIFO_USER_02, 0x4F464650); // 'OFFP': power off
+	while (true) {
+		swiWaitForVBlank();
+	}
+}
+
 void switchDevice(void) {
 	if (bothSDandFlashcard()) {
 		(ms().theme == TWLSettings::EThemeSaturn) ? snd().playLaunch() : snd().playSwitch();
@@ -4236,6 +4327,11 @@ std::string browseForFile(const std::vector<std::string_view> extensionList) {
 					return "null";
 				} else if (entry->name == "DSi Menu.dsimenu") {
 					exitToSystemMenu();
+					continue;
+				} else if (entry->name == "Power Off.dsisys") {
+					if (confirmPowerOff()) {
+						powerOffConsole();
+					}
 					continue;
 				} else if (entry->name == "DSi Settings.dsisys" || entry->name == "DSi Camera.dsicam") {
 					const bool settingsApp = (entry->name == "DSi Settings.dsisys");

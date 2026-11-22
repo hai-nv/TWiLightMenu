@@ -78,6 +78,15 @@ void ReturntoDSiMenu() {
 	}
 }
 
+void PowerOffConsole() {
+	nocashMessage("ARM7 PowerOffConsole");
+	if (isDSiMode() && !i2cBricked) {
+		i2cWriteRegister(0x4A, 0x11, 0x02);		// Power management: bit1 = power off
+	}
+	// DS mode (or if the i2c write did not take effect): classic power-off request
+	writePowerManagement(PM_CONTROL_REG, PM_SYSTEM_PWR);
+}
+
 typedef void (*pico_loader_7_func_t)(void);
 
 volatile bool reset_pico = false;
@@ -103,6 +112,9 @@ static void menuValue32Handler(u32 value, void* data) {
 			for (int channel = 0; channel < 16; channel++) {
 				SCHANNEL_CR(channel) &= ~SCHANNEL_ENABLE;
 			}
+			break;
+		case 0x4F464650: // 'OFFP': power off the console
+			PowerOffConsole();
 			break;
 		default:
 			ReturntoDSiMenu();
